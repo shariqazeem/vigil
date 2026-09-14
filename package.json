@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:watch": "vitest",
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
@@ -51,6 +52,7 @@
     "eslint-config-next": "15.5.19",
     "tsx": "^4.23.13",
     "typescript": "^5",
+    "vite": "^7.3.6",
     "vitest": "^5.0.0"
   }
 }
