@@ -69,7 +69,7 @@ behind both.
 ```bash
 npm install --legacy-peer-deps
 npx vitest run
-# 17 files, 278 tests, ~1s
+# 17 files, 287 tests, ~1s
 
 npx vitest run src/agent/__tests__/gates.test.ts
 # the red team: a jailbroken sequence pushed through the real hooks and the real tools
@@ -363,7 +363,7 @@ throws, so after each attempt the test asserts *nothing was spawned*, *nothing l
 legitimate look, a diagnosis, an allowed restart — which does run and does write, because a
 red-team test that passes against a broken harness proves nothing.
 
-The whole suite is 278 tests across 17 files, about a second, fully offline: no network, no model,
+The whole suite is 287 tests across 18 files, about a second, fully offline: no network, no model,
 no process spawned.
 
 ## How it knows it worked
