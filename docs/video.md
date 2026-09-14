@@ -185,8 +185,8 @@ under it.
 
 **DO** The `acts` row: `start vigil · on ubuntu@80.225.209.190`. Then the re-runs-the-check rows.
 Hold on the verify row and on the green `resolved` summary with the down time. **Read the numbers
-off your own recording** — in the reference run the act came back in 712ms and the check read
-`200 in 1423ms`, and yours will differ.
+off your own recording** — in the reference run the act came back in 371ms and the check read
+`200 in 207ms`, and yours will differ.
 
 **SAY**
 > It starts the process. Under a second.
@@ -270,7 +270,7 @@ Ends at **2:30**, on the held `policy · allow` frame, with one line replacing b
 > then Warden re-runs the exact check that failed and gets a two hundred, which is the only thing
 > that closes an incident here.
 
-**DO** Let beat 7's re-run row land under the voiceover, hold on `200 in 1423ms`, and end on the
+**DO** Let beat 8's re-run row land under the voiceover, hold on the `200 in …` reading, and end on the
 green console for two seconds.
 
 Cut, in order: beat 9 (the audit table), beat 10 (back to boring), beat 11 (the test suite), and —

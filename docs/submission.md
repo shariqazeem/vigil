@@ -84,9 +84,12 @@ to addresses that asked for everything does it mention something it already fixe
 news, not an interruption.
 
 A real run, from the audit table on the live site: Vigil was stopped on purpose. Warden read the
-process table and the logs, diagnosed a stopped process at 55% confidence — naming a suspect commit
-while explicitly declining to blame it — the policy returned `allow` under rule `policy-may`, it ran
-`pm2 start vigil` in 712ms, re-ran the failing probe, got `200 in 1423ms`, and closed the incident.
+process table, both log streams and the recent commits, and diagnosed a stopped process at 85%
+confidence — saying plainly that it could not name the trigger from the logs, and citing a standing
+rule a person had left behind on an earlier incident — the policy returned `allow` under rule `policy-may`, it ran
+`pm2 start vigil` in 371ms, re-ran the failing probe, got `200 in 207ms`, and closed the incident
+after 60 seconds down. One row in that audit table is a refusal: it tried to read the pm2 log file,
+which lives outside the service's checkout, and the operation refused it.
 
 ## What I had to get right before any of that could ship
 

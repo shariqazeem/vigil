@@ -30,11 +30,12 @@ running, what does the log say, what landed recently, does the smallest reversib
 The reason nobody automates it is that the automation is frightening. An agent with a shell on your
 production box is a worse problem than the outage. So the whole product is the two boundaries:
 
-- **The policy decides whether an act happens.** Per service, written by a human, in code —
-  `src/lib/ops/policy.ts`. `may` → Warden does it and tells you. `ask` → Warden works out exactly
-  what it would do, then stops the run and asks. `never` → refused, with the rule named. Plus an
-  action cap per incident and a cooldown per service, because a granted permission is not an
-  unbounded one.
+- **The policy decides whether an act happens.** One per service, written by a human — in the
+  console, operation by operation, or in code. `may` → Warden does it and tells you. `ask` → Warden
+  works out exactly what it would do, then stops the run and asks. `never` → refused, with the rule
+  named. Plus an action cap per incident and a cooldown per service, because a granted permission is
+  not an unbounded one. What reads it is a pure function (`decide()` in `src/lib/ops/policy.ts`), so
+  every branch is tested without a model, and the model never gets a say in the answer.
 - **The probe decides whether it worked.** `settle()` in `src/agent/warden.ts` re-runs the exact
   check that opened the incident. An incident is closed only by a clean reading, and the reading's
   id is stored on the incident as `verifiedByReadingId`. Warden does not get to say it fixed
@@ -156,12 +157,14 @@ result per address and has a button that sends a real one now.
 
 ## What it watches right now
 
-One VM, three real services, over ssh:
+One VM, three real services. Warden runs on the same box, so its operations are spawned directly
+here; point it at another machine and the identical operations go over ssh as argv, one multiplexed
+connection reused across an investigation.
 
 | Service | Policy | Why |
 | --- | --- | --- |
 | Warden's own console | `ASK_BEFORE_ACTING` | It may diagnose itself and show exactly what it would run, but not restart itself unasked: an operator that reboots the machine it is reasoning on loses the run it was in the middle of. |
-| Vigil | `DEFAULT_POLICY` | A real public Next.js service. If it is down, visitors get nothing. It may restart itself; anything that does not undo itself is an `ask`. |
+| Vigil | `DEFAULT_POLICY`, cooldown shortened to 3 minutes | A real public Next.js service. If it is down, visitors get nothing. It may restart itself; anything that does not undo itself is an `ask`. The shorter cooldown is because this is the service the console lets visitors break on purpose, so it is put back more often than anything else here. |
 | SAGE | `OBSERVE_ONLY` | Someone else's production, submitted to two other competitions. Every read allowed, every act refused by name. |
 
 SAGE is the interesting one. It is a live service this builder does not operate, and it is entered
@@ -186,6 +189,8 @@ are allowed to look at and not allowed to touch.
 %% Render: node scripts/render-diagram.mjs
 flowchart LR
 
+  CONSOLE["<b>THE CONSOLE</b> · the product, not a view of it<br/>register a service · <b>write the policy</b> · add checks<br/>sweep now · answer the question · read the audit<br/><i>canEdit is not canView · a form never names a key file</i>"]:::human
+
   subgraph SWEEP["THE SWEEP · pm2 cron, every 10 min, no model"]
     direction TB
     PROBE["probe a service<br/><i>http · process</i>"]:::code
@@ -193,6 +198,8 @@ flowchart LR
     OPEN{"failed twice<br/>in a row?"}:::gate
     PROBE --> READ --> OPEN
   end
+
+  CONSOLE --> PROBE
 
   OPEN -. "no — nothing to say" .-> QUIET(["it has been fine"]):::quiet
   OPEN == "yes" ==> INC[("incident opened")]:::store
@@ -209,6 +216,7 @@ flowchart LR
   GUARD{{"<b>four rules no policy can switch off</b><br/>no operation that does not exist ·<br/>no acting before diagnosing ·<br/>no second go at the same act ·<br/>no acting past a refusal"}}:::gate
 
   POLICY{{"<b>THE POLICY</b> — per service, written by a human<br/>may → do it · ask → stop and ask · never → refuse<br/><i>plus an action cap and a cooldown</i>"}}:::policy
+  CONSOLE == "a human writes it, in the console" ==> POLICY
 
   CAT[("<b>the catalogue</b> — 16 named operations<br/>zod-validated args, spawned with execFile<br/><i>there is no shell, and no way to compose one</i><br/>4 are forbidden to every policy")]:::src
 
@@ -221,6 +229,10 @@ flowchart LR
   HUMAN(["<b>a human</b><br/>approves, or does not"]):::human
   POLICY == "ask · context.interrupt()<br/><b>stopReason: interrupt</b>" ==> HUMAN
   HUMAN == "InterruptResponseContent<br/>hours later, another process" ==> REM
+
+  NOTIFY["<b>reach them</b><br/><i>POST to a webhook · Slack, Discord, your own</i><br/>never fails a run; every attempt recorded"]:::code
+  POLICY -. "it stopped" .-> NOTIFY
+  NOTIFY -.-> HUMAN
   REM -.-> SESS[("the session, on disk")]:::code
   SESS -.-> REM
 
@@ -235,6 +247,8 @@ flowchart LR
   GUARD --> AUDIT
   POLICY --> AUDIT
   VERIFY --> AUDIT
+
+  AUDIT -.-> HUMAN
 
   classDef agent fill:#eeeefb,stroke:#3f3cbb,stroke-width:1.5px,color:#14161a;
   classDef code fill:#f4f5f7,stroke:#5a616c,stroke-width:1.5px,color:#14161a;
@@ -282,7 +296,7 @@ Every row is a feature doing load-bearing work, not a feature switched on to be 
 | `Graph` (multi-agent) with a **conditional edge** | `src/agent/warden.ts` | Two agents, `investigate` → `remedy`. The edge handler reads the live incident context and returns false unless a diagnosis was recorded with confidence ≥ 0.5. Warden cannot act on a hunch, because the hunch never reaches the agent that can act. |
 | **Tools instead of `structuredOutputSchema`** | `src/agent/tools.ts` | The investigation's output is a `record_diagnosis` tool call, not a structured-output schema on the final message. The diagnosis has to be committed mid-run, where the graph's edge, the `act` guard and the incident row can all read it — a schema on the last message would arrive too late for any of them. |
 | **Tool-raised `context.interrupt()`** | `src/agent/tools.ts` (`act`) | When the policy says `ask`, the tool raises a real interrupt from inside the callback. The run genuinely stops, `stopReason: "interrupt"`, with the question written to the decisions table. |
-| **`InterruptResponseContent` resume** | `src/agent/warden.ts` (`resumeWithAnswer`) | Hours later and in another process, the owner's answer is handed back as the tool's return value and the agent finishes the thought it was having. |
+| **`InterruptResponseContent` resume** | `src/agent/warden.ts` (`resumeWithAnswer`) | Hours later and in another process, the owner's answer is handed back as the tool's return value and the agent finishes the thought it was having. The interrupt id is read from the **restored session** first (`initialize()`, then the agent's own unanswered interrupt) and from memory last — the process that raises an interrupt has normally exited by the time anybody answers, which is the bug this shipped with. |
 | **`SessionManager` + `LocalFileStorage`** | `src/agent/warden.ts` | The remedy agent's conversation is persisted so a halted run outlives the process that started it. It is deliberately cleared on a *fresh* attempt at the same incident and kept on a *resume*: an agent that reads its own earlier "I could not do anything here" simply says it again, which is what happened the first time this was built. |
 | **`AfterInvocationEvent` with `e.resume`** | `src/agent/warden.ts` | An investigation that ends without a diagnosis, or a remedy that ends having neither acted nor explained itself, is sent back once with a specific instruction. Silence at 3am is the one outcome that helps nobody. |
 | **`BeforeToolCallEvent` / `AfterToolCallEvent` hooks** | `src/agent/guards.ts` | The four rules no policy can switch off (below). `BeforeToolCallEvent` at `HookOrder.SDK_FIRST - 1` sets `e.cancel`, so the tool never runs; `AfterToolCallEvent` reads the result and remembers a refusal. |
@@ -299,7 +313,8 @@ Every row is a feature doing load-bearing work, not a feature switched on to be 
 Model: the deployed instance runs **MiniMax-M3** through an OpenAI-compatible endpoint. Bedrock is
 wired and switches on with `BEDROCK_MODEL_ID`, but **the live instance is not on Bedrock**. The
 console prints which model actually ran each pass (`modelLabel()`), so the screen cannot claim
-otherwise.
+otherwise — and `src/agent/__tests__/model.test.ts` asserts both halves of that: Bedrock leading a
+`ModelRouter` when it is configured, and the word appearing nowhere when it is not.
 
 ## What Warden is not allowed to do
 
@@ -365,24 +380,41 @@ the number an agent would prefer to report. If the reading is not clean, or if t
 re-run at all, the incident is escalated and says so: "Warden acted, but the check still fails …
 It is not calling this fixed."
 
-**One real run, from the audit table.** Vigil was stopped on purpose. Warden read the process table
-and the logs, then committed to a cause at 55% confidence:
+**One real run, from the audit table, and you can pull the same rows yourself.** Vigil was stopped
+on purpose — by pressing the button on the front page. Warden read the process table, both log
+streams and the recent commits, then committed to a cause at **85%**:
 
-> The site is returning 502 because the upstream process is not running. pm2 reports the vigil
-> process with status "stopped" (lastStartedAt 2026-09-14T07:30:38Z, restartsSinceAdded 4). … Time
-> alignment: pm2 last tried to start it at 07:30 UTC, which is after the check started failing at
-> 07:03 UTC … The most recent commit touching the agent runtime is 6fad866 … plausible suspect, but
-> I have not confirmed it actually crashed this process.
+> vigil is down because the process is stopped. `pm2_list` shows vigil status="stopped",
+> lastStartedAt 2026-09-14T09:47:13.844Z — it died between the last passing check at 10:11:52 and
+> now (10:12:27), which is exactly the 502 the symptom describes.
+>
+> No stack trace to quote: the error log is empty … and stdout only shows clean Next.js startup
+> cycles ("✓ Ready in ~1000ms") repeating with no exception, OOM line, or signal. **So I cannot name
+> the trigger of the stop from logs alone — it was silent.**
+>
+> This is a public site; the owner says "restart it if it is just stopped", `pm2_restart` is on the
+> permitted list, and the last passing check was one minute ago. … A restart is the right next act;
+> if it dies again immediately with no logged error, look at commits 6fad866 (10:53) and 503accd
+> (07:52) — they bracket when this started getting unhealthy.
 
-The policy returned `allow` under rule `policy-may`. Warden ran `pm2_start` — `start vigil · on
-ubuntu@80.225.209.190` — which came back ok in **712ms**. Then it re-ran the failing check and got
-**`200 in 1423ms`**, and the incident closed: down 1300s. An earlier, identical outage closed at
-140s down, with the same operation and `200 in 1044ms`.
+The policy returned `allow` under rule `policy-may`. Warden ran `pm2_start` — `start vigil` — which
+came back ok in **371ms**. Then it re-ran the failing check and got **`200 in 207ms`**, and the
+incident closed: down 60 seconds, six operations, one of which changed anything.
 
-Two details from that run worth more than the happy path. The investigation tried to read
-`/home/ubuntu/.pm2/logs/vigil-error.log`; the operation refused it — *path escapes the service
-checkout* — and the agent worked with what it was allowed to read. And the diagnosis names a suspect
-commit while explicitly declining to blame it. That is the tone the product is built for.
+Three details from that run are worth more than the happy path.
+
+It says **"I cannot name the trigger"** and acts anyway, on the thing it *can* establish, and names
+two commits for a human to look at if it recurs. A diagnosis that is honest about its own limit is
+more useful than a confident one, because the probe is what decides afterwards either way.
+
+It cites **"the owner says restart it if it is just stopped"** — that sentence is not in its prompt.
+It is a standing rule, left behind by a person answering one of Warden's questions on an earlier
+incident, handed back to the agent as context. Which is also why the prompt is explicit that a
+standing rule records what somebody said and grants nothing: the policy decides, every time.
+
+And one row in the audit table is a **refusal**: the investigation tried to read the pm2 log file,
+which lives outside the service's checkout, and the operation refused it — not the model deciding to
+be careful, the path check. That is the tone the product is built for.
 
 ## What is honest about this
 
