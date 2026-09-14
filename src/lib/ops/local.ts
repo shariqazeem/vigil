@@ -39,7 +39,7 @@ export function confineLocal(input: { repo?: string | null; process?: string | n
     process: null,
     nodeBin: null,
     refused: asked.length
-      ? `This Warden watches things over the network, not on the machine it runs on, so ${asked.join(" and ")} cannot be part of a service registered here — they would point it at its own host. Give it a machine of yours to reach instead, or run your own Warden with WARDEN_ALLOW_LOCAL_SERVICES=1.`
+      ? `This Warden watches things over the network, not the machine it runs on, so ${asked.join(" and ")} cannot be part of a service registered here: ${asked.length > 1 ? "they" : "it"} would point Warden at its own host. Give it a machine of yours to reach instead, or run your own Warden with WARDEN_ALLOW_LOCAL_SERVICES=1.`
       : null,
   };
 }

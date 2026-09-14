@@ -120,6 +120,13 @@ new surface is built around three boundaries with a test file that attacks each
 - **A form never names an ssh key file.** Keys are chosen by nickname from `WARDEN_SSH_KEYS`, and
   only the server knows the path. Unset — which is what the public instance runs — the console can
   register services watched over http but cannot reach a machine.
+- **A web registration cannot target the machine Warden runs on.** This one was a real hole, live
+  for about an hour: a service with no ssh key runs its operations locally, and `repo` and `process`
+  are the registrant's to choose, so `{repo: "/home/ubuntu/warden", process: "warden"}` pointed
+  `read_file` at Warden's own checkout — where the `.env` is — and `pm2_restart` at Warden itself.
+  The path containment in `operations.ts` is no defence, because the containment is relative to a
+  repo the attacker named. `WARDEN_ALLOW_LOCAL_SERVICES=1` turns it back on for somebody watching
+  their own box; the CLI was never affected, because whoever runs it already has a shell there.
 
 A policy arriving from a form is also sanitised before it is stored. Not because `decide()` would
 honour a forbidden operation — it refuses them by risk, whatever the policy says — but because a
