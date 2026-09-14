@@ -420,3 +420,39 @@ describe("withServiceDefaults", () => {
     expect(input).toEqual({});
   });
 });
+
+/**
+ * A SERVICE THAT IS A URL AND NOTHING ELSE.
+ *
+ * Registered from the console, with no checkout and no process. Every operation except http_probe is
+ * a question about a machine, and with no target of its own the only machine to hand is the one
+ * Warden is running on — which would be misleading before it was anything worse, and "worse" is the
+ * right word for handing a stranger the host's process table and paths.
+ */
+describe("an http-only service has no machine to ask about", () => {
+  const URL_ONLY = { host: "local", sshKey: null, repo: null, process: null, nodeBin: null };
+
+  it.each(["pm2_list", "pm2_logs", "git_log", "git_show", "read_file", "grep_repo", "disk_free", "pm2_restart", "pm2_start", "run_tests"] as const)(
+    "refuses %s, and spawns nothing",
+    async (op) => {
+      const before = proc.spawned.length;
+      const res = await execute(op, { process: "warden", path: "/etc/passwd", pattern: "x", repo: "/" }, URL_ONLY);
+      expect(res.ok).toBe(false);
+      expect(res.error).toContain("asks about a machine");
+      expect(proc.spawned.length, "nothing may be spawned").toBe(before);
+    },
+  );
+
+  it("still lets it check the one thing it is for", async () => {
+    // http_probe is implemented in-process, so this asserts the guard lets it through rather than
+    // asserting anything about the network.
+    const res = await execute("http_probe", { url: "http://127.0.0.1:1/nothing" }, URL_ONLY);
+    expect(res.error ?? "").not.toContain("asks about a machine");
+  });
+
+  it("does not get in the way of a service that does have a machine", async () => {
+    proc.set(async () => ({ stdout: "[]", stderr: "" }));
+    const res = await execute("pm2_list", {}, { host: "local", sshKey: null, repo: "/srv/app", process: "app", nodeBin: null });
+    expect(res.ok).toBe(true);
+  });
+});

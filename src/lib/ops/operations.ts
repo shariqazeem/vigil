@@ -392,6 +392,24 @@ export async function execute(name: OperationName, rawInput: unknown, target: Ta
 
   if (op.risk === "forbidden") return fail(`${name} is forbidden to Warden in all circumstances. It is not a policy setting.`);
 
+  /*
+   * A service with no machine of its own gets the network and nothing else.
+   *
+   * Some services are a URL and no more — registered from the console, with no checkout and no
+   * process. Every operation except `http_probe` is then a question about a machine, and with no
+   * target of their own the only machine to hand is the one Warden is running on. That would be
+   * misleading (a process table belonging to something else entirely) before it was anything worse,
+   * and "worse" is the right word for showing a stranger the host's processes and paths.
+   *
+   * This is not the policy speaking. The policy can grant `pm2_list` on such a service and the
+   * grant will be honest about what it means: there is simply nothing here for it to be about.
+   */
+  if (!target.process && !target.repo && (target.host === "local" || !target.host) && name !== "http_probe") {
+    return fail(
+      `${name} asks about a machine, and this service has none — it is watched over the network only. Give it a machine to reach, a checkout or a process name, and this becomes possible.`,
+    );
+  }
+
   let input: unknown;
   try {
     input = op.input.parse(rawInput ?? {});

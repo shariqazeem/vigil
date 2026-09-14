@@ -121,6 +121,11 @@ new surface is built around three boundaries with a test file that attacks each
 - **A form never names an ssh key file.** Keys are chosen by nickname from `WARDEN_SSH_KEYS`, and
   only the server knows the path. Unset — which is what the public instance runs — the console can
   register services watched over http but cannot reach a machine.
+- **A service with no machine of its own gets the network and nothing else.** Some services are a
+  URL and no more. Every operation except `http_probe` is then a question about a machine, and the
+  only machine to hand would be Warden's own — misleading before it is anything worse. `execute()`
+  refuses them by name, above the policy, because there is genuinely nothing there for them to be
+  about.
 - **A web registration cannot target the machine Warden runs on.** This one was a real hole, live
   for about an hour: a service with no ssh key runs its operations locally, and `repo` and `process`
   are the registrant's to choose, so `{repo: "/home/ubuntu/warden", process: "warden"}` pointed
