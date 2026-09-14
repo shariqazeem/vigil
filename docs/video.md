@@ -1,0 +1,241 @@
+# Warden — demo video script
+
+Screen recording with voiceover. **Target 4:40, hard ceiling 5:00.** A short cut ends at
+**2:28** — see [The 2:30 cut](#the-230-cut).
+
+Rules for this recording: real screens only, no slides, no stills. The cursor moves, the terminal
+types, the timeline fills in. Waiting is speed-ramped in the edit, never trimmed to a jump cut that
+hides a step. The two moments that play at 1× and are held are **the policy verdict** and **the
+re-run of the check**. Everything else can move.
+
+Voice: plain, unhurried, first person. Say numbers that are on screen and nothing that is not.
+
+---
+
+## Before you record
+
+Do these in order. The first one has bitten this project already.
+
+1. **Pause the sweep.**
+   ```bash
+   ssh ubuntu@80.225.209.190 'pm2 stop warden-sweep'
+   ```
+   The sweep runs every ten minutes, opens incidents and **hands them straight to the agent**. If it
+   is running, Warden will find and fix your deliberate outage before the camera gets there, and you
+   will be recording an incident that is already resolved with the "Hand it to Warden" button gone.
+   This has happened. Pause it first.
+2. **Check the cooldown.** The default policy is `cooldownMinutes: 10`, measured per service from
+   the last act Warden was *allowed*. If you rehearsed a restart of Vigil less than ten minutes ago,
+   the next one comes back as `ask` under rule `cooldown` and the run halts instead of fixing
+   anything. Wait it out, or accept it and record the halt instead — it is a good scene, just a
+   different one.
+3. **Confirm the board is green.** Load https://warden.80.225.209.190.sslip.io and check all three
+   cards are up and nothing is waiting on an answer.
+4. **Confirm Vigil is actually up** before you stop it: https://vigil.80.225.209.190.sslip.io should
+   answer 200. A service that is already down has no "goes red" moment.
+5. **Two windows, sized and placed**: a browser at 1440×900 with bookmarks hidden, and a terminal
+   with a large font, `ssh` already connected and the prompt cleared. Never show `.env`, a key path,
+   or your shell history.
+6. **Zoom the browser to 110%** so the audit table's monospace is readable in the encode.
+7. **Afterwards, restart the sweep:**
+   ```bash
+   ssh ubuntu@80.225.209.190 'pm2 start warden-sweep'
+   ```
+
+---
+
+## The beats
+
+### 1 · The problem, over a green board — 0:00–0:26
+
+**DO** Open on the console, already loaded, scrolled to the top. Slow scroll down through the three
+service cards and stop with all three visible. Nothing is clicked.
+
+**SAY**
+> I run three services on one machine. Right now all of them are up, and this page is boring on
+> purpose — that is what a normal night looks like.
+>
+> The thing is, monitoring already told me this. What monitoring does not do is the part that
+> happens after the alert. Is the process running. What does the log say. What deployed recently.
+> Does the smallest reversible thing fix it. That is four steps, in the same order, at three in the
+> morning, from a phone.
+
+### 2 · Who it is for, and the one card that matters — 0:26–0:52
+
+**DO** Hover the SAGE card. Punch in on the `observe only` chip and the line under it.
+
+**SAY**
+> This is for a team of one to five people who have something in production and nobody awake at 3am.
+>
+> And this card is the whole idea. SAGE is not mine. It is someone else's production, entered in two
+> competitions I am not part of. Warden watches it and cannot touch it — every read allowed, every
+> action refused by name. That is not a demo setting. It is a policy I wrote, per service, in code,
+> and it is the reason I am willing to give the other two to an agent at all.
+
+### 3 · Break something on purpose — 0:52–1:12
+
+**DO** Cut to the terminal. Type the command visibly, at real speed:
+```bash
+pm2 stop vigil
+```
+Hold on pm2's table showing `vigil · stopped`.
+
+**SAY**
+> So let us break one. Vigil is a real public site running on this box. I am going to stop it — not
+> simulate it, stop it — and then leave.
+
+**DO** Cut back to the browser. Reload. The Vigil card turns red; its sparkline picks up a red mark;
+the incident appears in the card's list.
+
+**SAY**
+> The check fails, and Warden opens an incident. Normally that happens on a ten minute sweep with
+> nobody here at all. I have paused it so you can watch, because otherwise this is already fixed
+> before I finish the sentence.
+
+### 4 · Hand it over — 1:12–1:30
+
+**DO** Click through to the incident page. Let the page settle: the title, the red `open` chip, the
+symptom `expected 200, got 502`. Move to the button and press **Hand it to Warden**. Hold on the
+first row appearing.
+
+**SAY**
+> Here is the incident. What the check said, verbatim, and nothing else yet — because nothing has
+> been done about it yet.
+>
+> One button. Everything from here happens in front of you.
+
+### 5 · The investigation — 1:30–2:12 · *speed-ramp 3–4× in the edit*
+
+**DO** Let the timeline fill. Keep the page scrolled so new rows are visible as they land. Ramp the
+gaps between rows; do not cut any row out. Drop to 1× for the diagnosis row and hold it.
+
+**SAY**
+> It looks at the process table first, because a stopped process explains a 502 and you do not need
+> to read source code to know that. Then the logs. Then what landed recently, and the diff of the
+> one commit that looks relevant.
+>
+> Each row says what it ran and what it was hoping that would tell it. It gets ten of these. The
+> service is down while it reads, and an investigation that keeps reading is avoiding a conclusion.
+
+**DO** Hold on the diagnosis row, with the confidence percentage visible.
+
+**SAY**
+> Then it has to commit. A cause, in plain words, quoting what it actually read — and how sure it
+> is. Notice what it does here: it names a commit as a suspect and then says it has not confirmed
+> that commit crashed anything. It is allowed to be unsure out loud. Under fifty per cent, it does
+> not get to act at all.
+
+### 6 · The policy decides — 2:12–2:28 · **1×, held**
+
+**DO** The `policy · allow` row lands. Punch in on the rule name — `policy-may` — and the sentence
+under it.
+
+**SAY**
+> And here is the boundary. The agent asked to do something. It did not decide whether it was
+> allowed. That is a pure function reading the policy I wrote for this service, and it answers with
+> the rule that decided — allow, refuse, or stop and ask me.
+
+> **← THE 2:30 CUT ENDS AFTER THE NEXT BEAT.** See below.
+
+### 7 · The fix, and the part that makes it true — 2:28–3:05 · **1×, held**
+
+**DO** The `acts` row: `start vigil · on ubuntu@80.225.209.190`. Then the re-run rows. Hold on
+`200 in 1423ms` and the green `resolved` summary with the down time.
+
+**SAY**
+> It starts the process. Seven hundred milliseconds.
+>
+> And then the part I care about most. Warden does not get to tell you it fixed something. It
+> re-runs the exact check that failed — the same probe, the same expectation, in code, with no model
+> anywhere near it. Two hundred. That reading is what closes the incident, and its id is stored on
+> the incident as the proof. If it had come back failing, this would say "Warden acted, but the
+> check still fails," and I would be awake.
+
+### 8 · Everything it ran — 3:05–3:50
+
+**DO** Scroll to *Everything it ran*. Slow pan down the table: operation, risk, policy verdict, rule,
+the exact command, milliseconds. Stop on the row where a read was refused — *path escapes the service
+checkout*. Then stop on the last line of the page.
+
+**SAY**
+> At the bottom is every call it made, with the rule that permitted each one. Copy any of these and
+> run it yourself; that is the point of the column.
+>
+> Warden has no shell. It cannot compose a command. It picks an operation by name from a fixed list
+> of sixteen, the arguments are validated, and it is spawned without a shell — so a semicolon in an
+> argument is a semicolon, not a second command.
+>
+> Look at this row. It tried to read the pm2 error log, which lives outside the service's checkout,
+> and the operation refused it. Not the model deciding to be careful. The path check.
+>
+> And four operations in that catalogue — migrate a database, delete data, rotate a secret, destroy
+> infrastructure — are in the list specifically so I can show you they are refused. No policy can
+> turn them on.
+
+### 9 · Back to boring — 3:50–4:15
+
+**DO** Back to the console. The Vigil card is green again, the incident row reads `resolved` with
+the down time. Hover the SAGE card once more.
+
+**SAY**
+> Board is green again, and the incident is sitting in the history with how long it was actually
+> down.
+>
+> That is the whole product: it does the mechanical part, it proves the fix with the check instead
+> of with a claim, and when the decision is genuinely mine, it stops and asks — the run actually
+> halts, and it can be picked back up hours later from a different process.
+
+### 10 · Why it matters — 4:15–4:40
+
+**DO** Cut to the terminal. Run:
+```bash
+npx vitest run src/agent/__tests__/gates.test.ts
+```
+Hold on the pass line. Then a last shot of the console, green.
+
+**SAY**
+> One last thing, because "the policy is code, not a prompt" is the claim you should be most
+> sceptical of. This test takes a jailbroken agent — an invented operation, a forbidden one, an
+> action before any diagnosis, a probe pointed at the cloud metadata endpoint — and pushes each one
+> through the real hooks and the real tools, with nothing able to spawn a process or reach the
+> network. It asserts nothing ran and nothing was written. A hundred and thirty-two tests, offline,
+> under a second.
+>
+> Small teams cannot afford someone awake at 3am. They can afford something that does the first four
+> steps carefully, inside a boundary they wrote, and proves what it did.
+
+---
+
+## The 2:30 cut
+
+Ends at **2:28**, on the held `policy · allow` frame, with one line replacing beat 6's last sentence:
+
+**SAY** (replacing the tail of beat 6)
+> That is a pure function reading the policy I wrote for this service. It allows the restart — and
+> then Warden re-runs the exact check that failed and gets a two hundred, which is the only thing
+> that closes an incident here.
+
+**DO** Let beat 7's re-run row land under the voiceover, hold on `200 in 1423ms`, and end on the
+green console for two seconds.
+
+Cut, in order: beat 8 (the audit table), beat 9 (back to boring), beat 10 (the test suite). Keep
+beats 1–7 intact, and keep the SAGE `observe only` hover in beat 2 — it is the cheapest twenty
+seconds in the film.
+
+---
+
+## Capture notes
+
+- Record the run once, whole. Do not stitch two attempts of the same incident together: the audit
+  table on screen will not match the timeline above it, and that is precisely the thing this product
+  claims cannot happen.
+- If the run halts on a question instead of acting, that is a legitimate second version of the film
+  — the halt, the proposal shown exactly, the approve button, and the run picking up where it
+  stopped. Do not re-record to avoid it; just decide which film you are making before you start.
+- The timeline is server-sent events. If you reload mid-run you lose the on-screen rows (the audit
+  table survives, the live timeline does not). Do not touch the page while it is working.
+- The model's wording changes between runs. Every SAY line above describes the *shape* of what
+  appears, not its exact text — read the screen you got, and if the diagnosis is short and certain,
+  drop the "allowed to be unsure out loud" sentence rather than talking over a screen that does not
+  show it.
+- Never show `.env`, the ssh key path, the browser's other tabs, or the terminal's scrollback.

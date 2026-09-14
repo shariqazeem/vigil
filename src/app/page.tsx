@@ -116,7 +116,7 @@ function ServiceCard({ service }: { service: Service }) {
     <article className={`sv card is-${state}`}>
       <header className="sv-head">
         <div>
-          <h2 className="sv-name">{service.name}</h2>
+          <h2 className="sv-name"><Link href={`/s/${service.id}`}>{service.name}</Link></h2>
           {service.matters ? <p className="sv-matters">{service.matters}</p> : null}
         </div>
         <span className={`chip ${state === "ok" ? "is-ok" : state === "down" ? "is-down" : "is-unknown"}`}>

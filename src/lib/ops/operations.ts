@@ -343,7 +343,17 @@ export const riskOf = (name: OperationName): Risk => OPERATIONS[name].risk;
 
 /* ── running one ──────────────────────────────────────────────────── */
 
-const cap = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}\n… [${s.length - n} more bytes]` : s);
+/**
+ * pm2 and git colour their output, and those escape codes travel all the way to a browser as
+ * literal noise. Strip them here, once, at the boundary — every consumer downstream (the model's
+ * context, the audit table, the live timeline) wants the text and not the terminal.
+ */
+const ANSI = /\u001B\[[0-?]*[ -/]*[@-~]/g;
+const clean = (s: string) => s.replace(ANSI, "");
+const cap = (s: string, n: number) => {
+  const t = clean(s);
+  return t.length > n ? `${t.slice(0, n)}\n… [${t.length - n} more bytes]` : t;
+};
 
 /**
  * Execute one operation. The only way anything in this product touches a machine.

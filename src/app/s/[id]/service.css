@@ -1,0 +1,43 @@
+/* One service: its checks, the finite list of what Warden may do to it, and its history. */
+
+.sp { max-width: 900px; margin: 0 auto; padding: var(--s-6) var(--gutter) var(--s-11); }
+
+.sp-head { margin-bottom: var(--s-7); }
+.sp-title { margin: 0 0 var(--s-2); font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: var(--tracking-h2); font-weight: 600; }
+.sp-matters { margin: 0 0 var(--s-3); color: var(--ink-muted); max-width: var(--measure); }
+.sp-meta { color: var(--ink-faint); }
+
+.sp-sec { margin-top: var(--s-8); }
+.sp-empty { color: var(--ink-faint); font-size: var(--fs-small); }
+
+.sp-probes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+.sp-probe { padding: var(--s-4) var(--s-5); }
+.sp-probe-h { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
+.sp-probe-l { font-weight: 600; }
+.sp-probe-up { color: var(--ink-faint); margin-left: auto; }
+.sp-probe-spec { margin: var(--s-2) 0 0; color: var(--ink-faint); overflow-wrap: anywhere; }
+.sp-probe-last { margin: 4px 0 0; color: var(--ink-muted); }
+
+.sp-spark { display: flex; gap: 2px; align-items: flex-end; margin-top: var(--s-3); }
+.sp-spark i { display: block; width: 4px; height: 16px; border-radius: 1px; background: var(--ok); opacity: 0.45; }
+.sp-spark i.is-down { background: var(--down); opacity: 1; }
+
+.sp-ops td:first-child { width: 40%; }
+.sp-ops tr.is-refused td { opacity: 0.85; }
+
+.sp-standing { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.sp-standing li { padding: var(--s-3) var(--s-4); display: flex; justify-content: space-between; gap: var(--s-4); align-items: baseline; font-size: var(--fs-small); }
+.sp-when { color: var(--ink-ghost); flex: none; }
+
+.sp-incidents { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.sp-incidents a {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  transition: transform var(--dur-1) var(--ease-spring), box-shadow var(--dur-1) var(--ease-out);
+}
+.sp-incidents a:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
+.sp-inc-t { font-size: var(--fs-small); flex: none; }
+.sp-inc-s { color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-inc-d { color: var(--ink-muted); margin-left: auto; flex: none; }
+
+@media (max-width: 620px) { .sp-inc-s { display: none; } }

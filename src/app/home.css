@@ -49,6 +49,8 @@
 .sv.is-down { border-color: var(--down-border); }
 .sv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-4); margin-bottom: var(--s-4); }
 .sv-name { margin: 0; font-size: var(--fs-h3); letter-spacing: var(--tracking-h3); font-weight: 600; }
+.sv-name a { transition: color var(--dur-1) var(--ease-out); }
+.sv-name a:hover { color: var(--accent); }
 .sv-matters { margin: 4px 0 0; color: var(--ink-faint); font-size: var(--fs-small); max-width: 52ch; }
 
 .sv-probes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
