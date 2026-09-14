@@ -59,9 +59,15 @@ async function vm(command) {
   return stdout.trim();
 }
 
-async function scene(name, body) {
+/**
+ * One scene. `before` runs BEFORE the recorder starts — anything that talks to the VM belongs
+ * there, because the camera is rolling from the moment the context exists and an ssh round trip
+ * put ten seconds of blank page at the head of the opening shot.
+ */
+async function scene(name, body, before) {
   if (ONLY && ONLY !== name) return;
   mkdirSync(OUT, { recursive: true });
+  if (before) await before();
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: SIZE, deviceScaleFactor: 2, recordVideo: { dir: OUT, size: SIZE }, colorScheme: "light" });
   const page = await ctx.newPage();
@@ -100,19 +106,30 @@ async function readDown(page, px, step = 90, pause = 90) {
 /* ── 1. everything is fine, and that is the point ─────────────────── */
 
 await scene("quiet", async (page) => {
-  await vm(`cd ${DIR} && pm2 start ${TARGET} >/dev/null 2>&1; npx tsx --env-file=.env scripts/sweep.ts >/dev/null 2>&1; true`);
+  // The landing first — it is what anybody actually arrives at — then the board it opens onto. The
+  // whole board has to be readable: three services, their checks, the sparkline of every reading
+  // taken, and the posture each one is under. Unhurried on purpose, because the point being made is
+  // that a normal night is boring.
   await page.goto(`${BASE}/`, { waitUntil: "networkidle", timeout: 120_000 });
-  // This is the opening shot and the whole board has to be readable in it — three services, their
-  // checks, the sparkline of every reading, and the posture each one is under. Unhurried on purpose:
-  // the point being made is that a normal night is boring.
-  await sleep(5000);
-  await readDown(page, 2400, 70, 150);
-  await sleep(3000);
+  // Hold on the hero, then move on. The landing has generous whitespace between scenes and a
+  // long scroll parks the camera on empty paper.
+  await sleep(3800);
+  await readDown(page, 420, 60, 110);
+  await sleep(900);
+  await page.goto(`${BASE}/fleet`, { waitUntil: "networkidle", timeout: 120_000 });
+  await sleep(3400);
+  await readDown(page, 2200, 70, 140);
+  await sleep(2600);
+}, async () => {
+  await vm(`cd ${DIR} && pm2 start ${TARGET} >/dev/null 2>&1; npx tsx --env-file=.env scripts/sweep.ts >/dev/null 2>&1; true`);
 });
 
 /* ── 1b. it is a product, not a window: register something and write its policy ── */
 
 await scene("console", async (page) => {
+  await page.goto(`${BASE}/start`, { waitUntil: "networkidle", timeout: 120_000 });
+  await sleep(2600);
+  await readDown(page, 700, 70, 120);
   await page.goto(`${BASE}/new`, { waitUntil: "networkidle", timeout: 120_000 });
   await sleep(2500);
 
@@ -164,6 +181,11 @@ await scene("console", async (page) => {
 /* ── 2. something breaks, for real ────────────────────────────────── */
 
 await scene("breaks", async (page) => {
+  await page.goto(`${BASE}/fleet`, { waitUntil: "networkidle", timeout: 120_000 });
+  await sleep(4000);
+  await readDown(page, 1200);
+  await sleep(2000);
+}, async () => {
   console.log("  stopping the sweep so the recording gets there first…");
   await vm("pm2 stop warden-sweep >/dev/null 2>&1; true");
   console.log(`  stopping ${TARGET} on the VM…`);
@@ -172,10 +194,6 @@ await scene("breaks", async (page) => {
   console.log("  running two sweeps so its own probe notices…");
   await vm(`cd ${DIR} && WARDEN_AUTO_HANDLE=0 npx tsx --env-file=.env scripts/sweep.ts 2>&1 | tail -3`);
   await vm(`cd ${DIR} && WARDEN_AUTO_HANDLE=0 npx tsx --env-file=.env scripts/sweep.ts 2>&1 | tail -3`);
-  await page.goto(`${BASE}/`, { waitUntil: "networkidle", timeout: 120_000 });
-  await sleep(4000);
-  await readDown(page, 1200);
-  await sleep(2000);
 });
 
 /* ── 3. the whole loop, live ──────────────────────────────────────── */
