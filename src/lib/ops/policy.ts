@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { OPERATIONS, riskOf, type OperationName, type Risk } from "./operations";
+import { OPERATION_NAMES, OPERATIONS, riskOf, type OperationName, type Risk } from "./operations";
 
 /**
  * THE POLICY. What a particular service lets Warden do without asking.
@@ -43,7 +43,51 @@ export const DEFAULT_POLICY: Policy = {
   note: "Look at anything. Restart yourself. Ask me before anything that does not undo itself.",
 };
 
+/**
+ * For a service where a restart is not obviously safe. Everything reads, nothing acts without a
+ * human — Warden works out exactly what it would do, shows it, and stops. Used for things that are
+ * load-bearing in a way a restart could make worse, including Warden's own console: an operator
+ * that restarts itself in the middle of an incident loses the run it was in the middle of.
+ */
+export const ASK_BEFORE_ACTING: Policy = {
+  may: ["http_probe", "pm2_list", "pm2_logs", "git_log", "git_show", "read_file", "grep_repo", "disk_free"],
+  ask: ["pm2_restart", "pm2_start", "run_tests", "redeploy_previous"],
+  never: ["db_migrate", "delete_data", "rotate_secret", "destroy_infra"],
+  maxActionsPerIncident: 2,
+  cooldownMinutes: 10,
+  note: "Look at anything. Work out the fix and show me exactly what you would run — but ask me before you run it.",
+};
+
 /** A service Warden may only read. Used for anything it does not own — someone else's production. */
+/**
+ * What this policy amounts to, in three words, for the card on the board.
+ *
+ * Derived from the policy itself rather than guessed from the shape of it: a service is "observe"
+ * when nothing that changes anything is permitted, "ask-first" when every such operation needs a
+ * human, and "may-act" when at least one can happen without waking anybody. Reading the operation
+ * catalogue for what counts as "changes anything" means a new reversible operation is covered the
+ * day it is added, rather than the day someone remembers to update a list in a component.
+ */
+export type Posture = "observe" | "ask-first" | "may-act";
+
+export function posture(p: Policy): Posture {
+  const changing = OPERATION_NAMES.filter((n) => {
+    const r = riskOf(n);
+    return r === "reversible" || r === "disruptive";
+  });
+  if (p.maxActionsPerIncident === 0) return "observe";
+  const unattended = changing.filter((n) => p.may.includes(n) && !p.never.includes(n) && !p.ask.includes(n));
+  if (unattended.length > 0) return "may-act";
+  const asks = changing.filter((n) => p.ask.includes(n) && !p.never.includes(n));
+  return asks.length > 0 ? "ask-first" : "observe";
+}
+
+export const POSTURE_WORDS: Record<Posture, { label: string; tone: "unknown" | "warn" | "accent" }> = {
+  observe: { label: "observe only", tone: "unknown" },
+  "ask-first": { label: "asks first", tone: "warn" },
+  "may-act": { label: "may act", tone: "accent" },
+};
+
 export const OBSERVE_ONLY: Policy = {
   may: ["http_probe", "pm2_list", "pm2_logs", "git_log", "git_show", "read_file", "grep_repo", "disk_free"],
   ask: [],

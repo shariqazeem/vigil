@@ -78,6 +78,7 @@ import {
 import type { Incident, Service } from "@/lib/db/schema";
 import { execute, OPERATION_NAMES, riskOf } from "@/lib/ops/operations";
 import { DEFAULT_POLICY, decide, type Policy } from "@/lib/ops/policy";
+import { statusChip } from "@/lib/incident-status";
 import { runProbe } from "@/lib/ops/sweep";
 import { TwoHandsOnly, WardenGuards } from "../guards";
 import { closeContext, openContext, type IncidentContext, type WardenEmit } from "../incident-context";
@@ -468,7 +469,22 @@ describe("the control — the same harness, doing the legitimate thing", () => {
     const pending = pendingDecisions(service.id);
     expect(pending).toHaveLength(1);
     expect(pending[0].proposal?.startsWith("pm2_restart\n")).toBe(true);
-    expect(getIncident(incident.id)?.status).toBe("escalated");
+
+    // The owner is approving the call that would ACTUALLY run. The model passed `input: {}` and let
+    // the service fill in the process — so if the question and the proposal are built from the raw
+    // arguments instead of the prepared ones, the owner is asked to approve "restart  on demo" and
+    // a proposal with no target in it. Production asked exactly that question before this assert
+    // existed.
+    expect(pending[0].question).toContain(`restart ${service.process}`);
+    expect(pending[0].question).not.toMatch(/\s{2,}/);
+    expect(JSON.parse(pending[0].proposal!.split("\n")[1]!)).toMatchObject({ process: service.process });
+    expect(rows[0].input).toContain(service.process!);
+
+    // Stopped holding a question is NOT the same outcome as handing the problem back, and the
+    // console says so in different words.
+    expect(getIncident(incident.id)?.status).toBe("waiting");
+    expect(statusChip("waiting").label).toBe("waiting on you");
+    expect(statusChip("escalated").label).not.toBe(statusChip("waiting").label);
 
     closeContext(incident.id);
   });

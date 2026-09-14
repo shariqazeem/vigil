@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { canView, currentOwner } from "@/lib/auth/session";
 import { listIncidents, listProbes, listStanding, parseSpec, policyOf, readingsFor, getService } from "@/lib/db/warden";
+import { decide } from "@/lib/ops/policy";
 import { catalogue } from "@/lib/ops/operations";
 import "../../i/[id]/incident.css";
 import "./service.css";
+import { chipClass, statusChip } from "@/lib/incident-status";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +31,17 @@ export default async function ServicePage({ params }: { params: Promise<{ id: st
   const standing = listStanding(id);
   const ops = catalogue();
 
-  const verdictFor = (op: string, risk: string): { label: string; tone: string } => {
-    if (risk === "forbidden") return { label: "never, under any policy", tone: "is-down" };
-    if (policy.never.includes(op)) return { label: "never", tone: "is-down" };
-    if (policy.ask.includes(op)) return { label: "asks first", tone: "is-warn" };
-    if (policy.may.includes(op)) return { label: "may", tone: "is-ok" };
-    return { label: "asks first", tone: "is-warn" };
+  /**
+   * What would happen if this operation came up right now, on a fresh incident. This calls the SAME
+   * pure function the agent is gated by — it does not re-state the policy's ordering in JSX, which
+   * is how a page like this ends up quietly describing rules the engine stopped following.
+   */
+  const verdictFor = (op: string): { label: string; tone: string; rule: string } => {
+    const d = decide(op, policy, { actionsTaken: 0, minutesSinceLastAction: null });
+    if (d.rule === "forbidden-always") return { label: "never, under any policy", tone: "is-down", rule: d.rule };
+    if (d.verdict === "refuse") return { label: "never", tone: "is-down", rule: d.rule };
+    if (d.verdict === "ask") return { label: "asks first", tone: "is-warn", rule: d.rule };
+    return { label: "may", tone: "is-ok", rule: d.rule };
   };
 
   const resolved = incidents.filter((i) => i.status === "resolved");
@@ -114,7 +121,7 @@ export default async function ServicePage({ params }: { params: Promise<{ id: st
             </thead>
             <tbody>
               {ops.map((o) => {
-                const v = verdictFor(o.name, o.risk);
+                const v = verdictFor(o.name);
                 return (
                   <tr key={o.name} className={o.risk === "forbidden" ? "is-refused" : ""}>
                     <td className="mono in-op">{o.name}</td>
@@ -158,7 +165,7 @@ export default async function ServicePage({ params }: { params: Promise<{ id: st
           {incidents.map((i) => (
             <li key={i.id}>
               <Link href={`/i/${i.id}`} className="card">
-                <span className={`chip ${i.status === "resolved" ? "is-ok" : i.status === "escalated" ? "is-warn" : "is-down"}`}>{i.status}</span>
+                <span className={chipClass(i.status)}>{statusChip(i.status).label}</span>
                 <span className="sp-inc-t">{i.title.replace(`${service.name}: `, "")}</span>
                 <span className="sp-inc-s mono">{i.symptom.slice(0, 60)}</span>
                 <span className="sp-inc-d mono">{i.downSeconds !== null ? fmt(i.downSeconds) : "—"}</span>

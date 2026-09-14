@@ -2,7 +2,7 @@ import { BedrockModel, DefaultModelRetryStrategy, ExponentialBackoff, FallbackSt
 import { OpenAIModel } from "@strands-agents/sdk/models/openai";
 
 /**
- * One place that decides which model each part of Vigil runs on. Nothing else constructs a model.
+ * One place that decides which model each part of Warden runs on. Nothing else constructs a model.
  *
  * On AWS the agents run on Amazon Bedrock: set BEDROCK_MODEL_ID (plus AWS credentials / AWS_REGION,
  * or AWS_BEARER_TOKEN_BEDROCK) and every role switches — and because a watch that runs for years
@@ -10,9 +10,9 @@ import { OpenAIModel } from "@strands-agents/sdk/models/openai";
  * with the OpenAI-compatible gateway behind it as a FallbackStrategy. With no Bedrock configured
  * the gateway is used on its own, and the product says so honestly rather than pretending.
  *
- * Roles exist because the work is not all the same difficulty. Reading a photo of a shelf and
- * deciding whether four hundred words of recall prose cover YOUR unit are judgement; listing which
- * federal source applies to a cot is not. `WARDEN_MODEL_HEAVY` may name a stronger model for the
+ * Roles exist because the work is not all the same difficulty. Reading a stack trace against last
+ * night's diff, and deciding what to do about a system that is down right now, are judgement.
+ * Writing the summary afterwards is not. `WARDEN_MODEL_HEAVY` may name a stronger model for the
  * judgement roles; without it every role shares one model and nothing breaks.
  */
 export type Role = "investigate" | "remedy" | "brief";
@@ -27,7 +27,8 @@ const DEFAULT_MODEL = "MiniMax-M3";
  * Kept under the gateway's per-request cost ceiling. Commonstack reserves `max_tokens × price`
  * against the key's cap before it will start a request, and rejects the whole call with
  * `429 quota exceeded (cap 0.5)` if the reservation does not fit — measured: 4000 passes, 8000 does
- * not. Nothing Vigil writes is long; the ceiling costs it nothing and a 429 costs it a pass.
+ * not. Nothing Warden writes is long — a diagnosis is a paragraph — so the ceiling costs it nothing,
+ * and a 429 costs it a whole pass.
  */
 const MAX_TOKENS = Number(process.env.WARDEN_MAX_TOKENS ?? 3000);
 

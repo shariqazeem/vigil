@@ -44,7 +44,7 @@ const isRateLimited = (e: unknown): boolean => {
 export const throttleStats = { calls: 0, queued: 0, rateLimited: 0, waitedMs: 0 };
 
 export class Throttled implements Plugin {
-  readonly name = "vigil:throttled";
+  readonly name = "warden:throttled";
 
   initAgent(agent: LocalAgent): void {
     agent.addMiddleware(InvokeModelStage, async function* (context, next) {

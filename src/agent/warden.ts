@@ -23,7 +23,7 @@ import {
 import { verifyIncident } from "@/lib/ops/sweep";
 import { makeModel, modelLabel, retryStrategy } from "./model";
 import { Throttled } from "./throttle";
-import { WardenGuards } from "./guards";
+import { TwoHandsOnly, WardenGuards } from "./guards";
 import { closeContext, contextFor, hasContext, openContext, type IncidentContext, type WardenEmit } from "./incident-context";
 import { act, giveUp, listTried, look, readIncident, recordDiagnosis } from "./tools";
 
@@ -142,6 +142,7 @@ function investigator(incidentId: string): Agent {
     // falls out of it is already in the evidence list, which read_incident hands back on demand.
     conversationManager: new SlidingWindowConversationManager({ windowSize: 16, pinFirst: 1 }),
     plugins: [new WardenGuards(), new Throttled()],
+    interventions: [new TwoHandsOnly()],
     traceAttributes: { "warden.node": "investigate", "warden.incident_id": incidentId },
     printer: false,
   });
@@ -167,6 +168,7 @@ function remedy(incidentId: string): Agent {
     tools: [readIncident, listTried, act, giveUp],
     retryStrategy: retryStrategy(),
     plugins: [new WardenGuards(), new Throttled()],
+    interventions: [new TwoHandsOnly()],
     // An incident that stops to ask a human may wait hours. The conversation has to outlive the
     // process it started in, or the answer comes back to nobody.
     sessionManager: new SessionManager({ sessionId: sessionIdFor(incidentId), storage: new LocalFileStorage(SESSIONS), saveLatestOn: "message" }),
@@ -292,11 +294,13 @@ export async function handleIncident(incidentId: string, emit: (e: WardenEmit) =
 
 /** The run is stopped on a question. Say so, and leave it stopped. */
 function holdForHuman(ctx: IncidentContext): Outcome {
-  updateIncident(ctx.incidentId, { status: "escalated" });
+  // `waiting`, not `escalated`. The run is stopped holding a question, which is a different thing
+  // from handing the problem back — see src/lib/incident-status.ts.
+  updateIncident(ctx.incidentId, { status: "waiting" });
   const summary = "Warden stopped and is waiting on you.";
-  ctx.emit({ kind: "run.done", incidentId: ctx.incidentId, status: "escalated", downSeconds: null, summary });
+  ctx.emit({ kind: "run.done", incidentId: ctx.incidentId, status: "waiting", downSeconds: null, summary });
   logEvent(ctx.serviceId, "policy", "halted", summary, ctx.incidentId);
-  return { incidentId: ctx.incidentId, status: "escalated", downSeconds: null, summary };
+  return { incidentId: ctx.incidentId, status: "waiting", downSeconds: null, summary };
 }
 
 /**

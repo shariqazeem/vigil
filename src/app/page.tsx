@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { allServices, listIncidents, listProbes, openIncidents, pendingDecisions, policyOf, readingsFor } from "@/lib/db/warden";
+import { POSTURE_WORDS, posture } from "@/lib/ops/policy";
 import type { Service } from "@/lib/db/schema";
 import "./home.css";
+import { chipClass, statusChip } from "@/lib/incident-status";
 
 export const dynamic = "force-dynamic";
 
@@ -17,18 +19,11 @@ export default async function Console() {
   const waiting = pendingDecisions();
   const open = openIncidents();
 
-  const totals = services.reduce(
-    (acc, s) => {
-      for (const p of listProbes(s.id)) {
-        const rs = readingsFor(p.id, 200);
-        acc.looks += rs.length;
-        acc.ok += rs.filter((r) => r.ok).length;
-      }
-      return acc;
-    },
-    { looks: 0, ok: 0 },
-  );
-  const fixed = services.flatMap((s) => listIncidents(s.id, 200)).filter((i) => i.status === "resolved");
+  const looks = services.reduce((n, s) => n + listProbes(s.id).reduce((m, p) => m + readingsFor(p.id, 200).length, 0), 0);
+  const all = services.flatMap((s) => listIncidents(s.id, 200));
+  const fixed = all.filter((i) => i.status === "resolved");
+  // Deliberately not an uptime percentage. This fleet is broken on purpose several times a day to
+  // test the operator, so a "% clean" figure would say more about the testing than the software.
   const medianDown = median(fixed.map((i) => i.downSeconds ?? 0).filter(Boolean));
 
   return (
@@ -42,9 +37,9 @@ export default async function Console() {
         </p>
         <div className="hm-stats">
           <Stat n={String(services.length)} of="services watched" />
-          <Stat n={totals.looks.toLocaleString()} of="checks run" />
-          <Stat n={`${totals.looks ? Math.round((totals.ok / totals.looks) * 100) : 100}%`} of="came back clean" />
-          <Stat n={String(fixed.length)} of={`fixed without a human${medianDown ? `, median ${fmt(medianDown)}` : ""}`} />
+          <Stat n={looks.toLocaleString()} of="checks run" />
+          <Stat n={String(all.length)} of={`incident${all.length === 1 ? "" : "s"}`} />
+          <Stat n={String(fixed.length)} of={`closed without waking anyone${medianDown ? ` · median ${fmt(medianDown)} down` : ""}`} />
         </div>
       </header>
 
@@ -108,7 +103,7 @@ function ServiceCard({ service }: { service: Service }) {
   const open = openIncidents(service.id);
   const policy = policyOf(service);
   const history = listIncidents(service.id, 60);
-  const observeOnly = policy.maxActionsPerIncident === 0;
+  const stance = POSTURE_WORDS[posture(policy)];
 
   const state = open.length ? "down" : probes.length ? "ok" : "unknown";
 
@@ -148,7 +143,7 @@ function ServiceCard({ service }: { service: Service }) {
       </ul>
 
       <footer className="sv-foot">
-        <span className={`chip ${observeOnly ? "is-unknown" : "is-accent"}`}>{observeOnly ? "observe only" : "may act"}</span>
+        <span className={`chip is-${stance.tone}`}>{stance.label}</span>
         <span className="sv-policy">{policy.note}</span>
       </footer>
 
@@ -157,7 +152,7 @@ function ServiceCard({ service }: { service: Service }) {
           {history.slice(0, 4).map((i) => (
             <li key={i.id}>
               <Link href={`/i/${i.id}`}>
-                <span className={`chip ${i.status === "resolved" ? "is-ok" : i.status === "escalated" ? "is-warn" : "is-down"}`}>{i.status}</span>
+                <span className={chipClass(i.status)}>{statusChip(i.status).label}</span>
                 <span className="sv-inc-t">{i.title.replace(`${service.name}: `, "")}</span>
                 {i.downSeconds !== null ? <span className="mono sv-inc-d">{fmt(i.downSeconds)}</span> : null}
               </Link>

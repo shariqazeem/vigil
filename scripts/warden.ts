@@ -5,6 +5,7 @@
  *   npx tsx --env-file=.env scripts/warden.ts sweep               # ask every probe once
  *   npx tsx --env-file=.env scripts/warden.ts handle <incidentId> # work one incident
  *   npx tsx --env-file=.env scripts/warden.ts answer <decId> approve
+ *   npx tsx --env-file=.env scripts/warden.ts policy <svcId> may|ask|observe
  *   npx tsx --env-file=.env scripts/warden.ts show
  *   npx tsx --env-file=.env scripts/warden.ts break <svcId>       # stop a service on purpose
  */
@@ -22,8 +23,9 @@ import {
   readingsFor,
   serviceView,
   targetOf,
+  touchService,
 } from "../src/lib/db/warden";
-import { DEFAULT_POLICY, OBSERVE_ONLY } from "../src/lib/ops/policy";
+import { ASK_BEFORE_ACTING, DEFAULT_POLICY, OBSERVE_ONLY } from "../src/lib/ops/policy";
 import { execute } from "../src/lib/ops/operations";
 import { sweepService, type SweepEmit } from "../src/lib/ops/sweep";
 import { handleIncident, resumeWithAnswer } from "../src/agent/warden";
@@ -76,11 +78,13 @@ async function register() {
   const fleet = [
     {
       name: "Warden's own console",
-      matters: "If this is down, nobody can see what any of the others are doing.",
+      matters: "If this is down, nobody can see what any of the others are doing — including this incident.",
       process: "warden",
       repo: "/home/ubuntu/warden",
       url: "https://warden.80.225.209.190.sslip.io/",
-      policy: DEFAULT_POLICY,
+      // It may diagnose itself, but not restart itself unasked: an operator that reboots the
+      // machine it is reasoning on loses the run it was in the middle of.
+      policy: ASK_BEFORE_ACTING,
     },
     {
       name: "Vigil",
@@ -114,7 +118,7 @@ async function register() {
     });
     addProbe({ serviceId: svc.id, kind: "http", label: "the site answers", spec: { url: f.url, expectStatus: 200 }, everySeconds: 120, failuresToOpen: 2 });
     addProbe({ serviceId: svc.id, kind: "process", label: "the process is up", spec: { process: f.process }, everySeconds: 120, failuresToOpen: 1 });
-    console.log(`${svc.id}  ${svc.name}  ${c.dim(f.policy === OBSERVE_ONLY ? "observe only" : "may restart itself")}`);
+    console.log(`${svc.id}  ${svc.name}  ${c.dim(f.policy === OBSERVE_ONLY ? "observe only" : f.policy === ASK_BEFORE_ACTING ? "asks before acting" : "may restart itself")}`);
   }
 }
 
@@ -144,6 +148,19 @@ async function main() {
   if (cmd === "answer") {
     const out = await resumeWithAnswer(arg(1)!, arg(2) ?? "approve", arg(3), print);
     console.log(c.dim(`\n${out.status}`));
+    return;
+  }
+
+  if (cmd === "policy") {
+    // Change what a service's owner permits, without re-registering it. The three named postures are
+    // the ones in src/lib/ops/policy.ts; anything finer is written in that file, not typed here.
+    const svc = getService(arg(1) ?? "");
+    if (!svc) return void console.log("no such service — run `show` for the ids");
+    const named: Record<string, typeof DEFAULT_POLICY> = { may: DEFAULT_POLICY, ask: ASK_BEFORE_ACTING, observe: OBSERVE_ONLY };
+    const next = named[arg(2) ?? ""];
+    if (!next) return void console.log("posture must be one of: may | ask | observe");
+    touchService(svc.id, { policy: JSON.stringify(next) });
+    console.log(`${svc.name} → ${c.b(arg(2)!)}  ${c.dim(next.note)}`);
     return;
   }
 

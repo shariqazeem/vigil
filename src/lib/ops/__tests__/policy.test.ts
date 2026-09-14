@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OPERATIONS, OPERATION_NAMES, riskOf, type OperationName } from "../operations";
-import { DEFAULT_POLICY, OBSERVE_ONLY, PolicySchema, decide, describePolicy, parsePolicy, type Policy, type PolicyContext } from "../policy";
+import { ASK_BEFORE_ACTING, DEFAULT_POLICY, OBSERVE_ONLY, PolicySchema, decide, describePolicy, parsePolicy, posture, type Policy, type PolicyContext } from "../policy";
 
 /**
  * `decide()` is the whole product in one pure function, so it is tested the way a pure function
@@ -300,5 +300,51 @@ describe("describePolicy", () => {
     expect(text).toContain("You may do these without asking: pm2_list");
     expect(text).not.toContain("You must stop and ask before");
     expect(text).not.toContain("You may never do");
+  });
+});
+
+/**
+ * The three words on a service card. This is what an owner glances at to know whether the thing
+ * watching their production can touch it, so it has to be derived from the policy rather than from
+ * a guess about the shape of one — and it has to stay right when a new operation is added.
+ */
+describe("the posture a card shows", () => {
+  it("calls a policy that permits nothing an observer", () => {
+    expect(posture(OBSERVE_ONLY)).toBe("observe");
+  });
+
+  it("calls a policy with an unattended restart an actor", () => {
+    expect(posture(DEFAULT_POLICY)).toBe("may-act");
+  });
+
+  it("calls a policy whose every change needs a human an asker", () => {
+    expect(posture(ASK_BEFORE_ACTING)).toBe("ask-first");
+  });
+
+  it("is not fooled by a policy that may do plenty, as long as none of it changes anything", () => {
+    const readsEverything: Policy = {
+      ...OBSERVE_ONLY,
+      may: OPERATION_NAMES.filter((n) => riskOf(n) === "read"),
+      maxActionsPerIncident: 3,
+    };
+    expect(posture(readsEverything)).toBe("observe");
+  });
+
+  it("demotes to asking when the one changing operation it may do is also on the never list", () => {
+    const contradictory: Policy = { ...DEFAULT_POLICY, never: [...DEFAULT_POLICY.never, "pm2_restart", "pm2_start", "run_tests"] };
+    // never beats may — the same precedence decide() uses — so nothing is left that can happen
+    // unattended, and the card must not keep saying "may act".
+    expect(posture(contradictory)).not.toBe("may-act");
+    for (const op of ["pm2_restart", "pm2_start"]) {
+      expect(decide(op, contradictory, { actionsTaken: 0, minutesSinceLastAction: null }).verdict).toBe("refuse");
+    }
+  });
+
+  it("agrees with decide() about whether anything can happen unattended", () => {
+    const changing = OPERATION_NAMES.filter((n) => riskOf(n) === "reversible" || riskOf(n) === "disruptive");
+    for (const policy of [OBSERVE_ONLY, DEFAULT_POLICY, ASK_BEFORE_ACTING]) {
+      const anyAllowed = changing.some((op) => decide(op, policy, { actionsTaken: 0, minutesSinceLastAction: null }).verdict === "allow");
+      expect(posture(policy) === "may-act", `${describePolicy(policy).slice(0, 40)}`).toBe(anyAllowed);
+    }
   });
 });

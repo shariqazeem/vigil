@@ -4,6 +4,7 @@ import { canView, currentOwner } from "@/lib/auth/session";
 import { decisionsFor, getIncident, getProbe, getService, listActions, parseOptions, pendingDecisions } from "@/lib/db/warden";
 import { Live, type OpenQuestion } from "./live";
 import "./incident.css";
+import { chipClass, statusChip } from "@/lib/incident-status";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
         <div>
           <h1 className="in-title">{incident.title}</h1>
           <p className="in-sub">
-            <span className={`chip ${resolved ? "is-ok" : incident.status === "escalated" ? "is-warn" : "is-down"}`}>{incident.status}</span>
+            <span className={chipClass(incident.status)}>{statusChip(incident.status).label}</span>
             <span className="mono in-when">opened {when(incident.openedAt)}</span>
             {incident.downSeconds !== null ? <span className="mono in-down">down {fmt(incident.downSeconds)}</span> : null}
           </p>

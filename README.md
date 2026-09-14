@@ -76,9 +76,9 @@ One VM, three real services, over ssh:
 
 | Service | Policy | Why |
 | --- | --- | --- |
-| Warden's own console | default | If it is down, nobody can see what the others are doing. |
-| Vigil | default | A real public Next.js service. If it is down, visitors get nothing. |
-| SAGE | `OBSERVE_ONLY` | Someone else's production, submitted to two other competitions. |
+| Warden's own console | `ASK_BEFORE_ACTING` | It may diagnose itself and show exactly what it would run, but not restart itself unasked: an operator that reboots the machine it is reasoning on loses the run it was in the middle of. |
+| Vigil | `DEFAULT_POLICY` | A real public Next.js service. If it is down, visitors get nothing. It may restart itself; anything that does not undo itself is an `ask`. |
+| SAGE | `OBSERVE_ONLY` | Someone else's production, submitted to two other competitions. Every read allowed, every act refused by name. |
 
 SAGE is the interesting one. It is a live service this builder does not operate, and it is entered
 in competitions where a stray restart would be a real problem. Its policy grants every read and
@@ -169,8 +169,8 @@ Three layers, and only the middle one has a model in it.
 
 **The sweep** (`src/lib/ops/sweep.ts`, `scripts/sweep.ts`) asks every probe on every service and
 writes down the answer, including the boring ones — "it has been fine for nine hours" is a claim
-that needs rows behind it. An incident opens after two consecutive failures, so one blip is not an
-outage. Nothing here reasons. pm2 runs it every ten minutes (`cron_restart: "*/10 * * * *"` in
+that needs rows behind it. An incident opens once a probe has failed its own threshold of times in a
+row (`failuresToOpen`, two by default), so one blip is not an outage. Nothing here reasons. pm2 runs it every ten minutes (`cron_restart: "*/10 * * * *"` in
 `ecosystem.config.cjs`) and hands each new incident straight to the agent with nobody present. That
 cron entry is the difference between an operator and a button.
 
@@ -199,10 +199,10 @@ Every row is a feature doing load-bearing work, not a feature switched on to be 
 | **Tools instead of `structuredOutputSchema`** | `src/agent/tools.ts` | The investigation's output is a `record_diagnosis` tool call, not a structured-output schema on the final message. The diagnosis has to be committed mid-run, where the graph's edge, the `act` guard and the incident row can all read it — a schema on the last message would arrive too late for any of them. |
 | **Tool-raised `context.interrupt()`** | `src/agent/tools.ts` (`act`) | When the policy says `ask`, the tool raises a real interrupt from inside the callback. The run genuinely stops, `stopReason: "interrupt"`, with the question written to the decisions table. |
 | **`InterruptResponseContent` resume** | `src/agent/warden.ts` (`resumeWithAnswer`) | Hours later and in another process, the owner's answer is handed back as the tool's return value and the agent finishes the thought it was having. |
-| **`SessionManager` + `LocalFileStorage`** | `src/agent/warden.ts` | The remedy agent's conversation is persisted so a halted run outlives the process that started it. It is deliberately cleared on a *fresh* attempt at the same incident and kept on a *resume* — see [What broke](#what-is-honest-about-this). |
+| **`SessionManager` + `LocalFileStorage`** | `src/agent/warden.ts` | The remedy agent's conversation is persisted so a halted run outlives the process that started it. It is deliberately cleared on a *fresh* attempt at the same incident and kept on a *resume*: an agent that reads its own earlier "I could not do anything here" simply says it again, which is what happened the first time this was built. |
 | **`AfterInvocationEvent` with `e.resume`** | `src/agent/warden.ts` | An investigation that ends without a diagnosis, or a remedy that ends having neither acted nor explained itself, is sent back once with a specific instruction. Silence at 3am is the one outcome that helps nobody. |
 | **`BeforeToolCallEvent` / `AfterToolCallEvent` hooks** | `src/agent/guards.ts` | The four rules no policy can switch off (below). `BeforeToolCallEvent` at `HookOrder.SDK_FIRST - 1` sets `e.cancel`, so the tool never runs; `AfterToolCallEvent` reads the result and remembers a refusal. |
-| **`InterventionHandler`** (`TwoHandsOnly`) | `src/agent/guards.ts` | States the shape of the product declaratively: six tools are allowed, and anything whose *name* suggests a shell (`shell`, `bash`, `exec`, `sudo`, `ssh`, `curl`, `python`, `eval`, …) is denied before it can be wired up. Proven in `guards.test.ts` and `gates.test.ts`; it is not yet registered on the two live agents, which are held by the hooks. |
+| **`InterventionHandler`** (`TwoHandsOnly`) | `src/agent/guards.ts` | States the shape of the product declaratively: six tools are allowed, and anything whose *name* suggests a shell (`shell`, `bash`, `exec`, `sudo`, `ssh`, `curl`, `python`, `eval`, …) is denied before it can be wired up. Registered on both agents as `interventions: [new TwoHandsOnly()]`, and proven in `guards.test.ts` and `gates.test.ts`. |
 | **`InvokeModelStage` middleware** | `src/agent/throttle.ts` | One queue for every model call in the process. Several incidents can be live at once; the fan-out stays and the gateway sees a bounded queue. A 429 waits and comes back rather than failing a node. |
 | **`ModelRouter` + `FallbackStrategy`** | `src/agent/model.ts` | With `BEDROCK_MODEL_ID` set, Amazon Bedrock is the primary candidate and the OpenAI-compatible gateway is the fallback, `maxSwitches: 2`. A watch that runs for years cannot go dark because one provider does. |
 | **`BedrockModel`** with prompt caching | `src/agent/model.ts` | `cacheConfig: { strategy: "auto" }` — the system prompts are long and identical across a pass. |
@@ -307,9 +307,6 @@ commit while explicitly declining to blame it. That is the tone the product is b
   also run tests and roll back to the previous build; neither has been the thing that fixed a real
   incident yet. `redeploy_previous` is `ask` in the default policy and has not been exercised
   against a real outage.
-- **`TwoHandsOnly`, the declarative `InterventionHandler`, is not registered on the live agents.**
-  It is written and tested; the running agents are held by the `BeforeToolCallEvent` hooks, which
-  cover the same ground for the tools that exist.
 - **The halt has not fired on the live fleet.** The interrupt path — the policy saying `ask`, the
   run stopping, a human answering, the run resuming with `InterruptResponseContent` — is exercised
   by the test suite (including the cooldown case, which raises a real interrupt and leaves a real

@@ -167,8 +167,10 @@ tools are allowed by name, and anything whose name matches this is denied before
   private static readonly SHELL_SHAPED = /(shell|bash|exec|spawn|command|eval|sudo|ssh|curl|http_request|file_editor|python)/i;
 ```
 
-It is proved by the tests; it is not yet registered on the two live agents, which are held by the
-hooks. I would rather say that than imply otherwise.
+Both agents carry it as `interventions: [new TwoHandsOnly()]`, and the tests drive it directly. It
+is belt and braces next to the hooks, and it is there because the *shape* of the product deserves to
+be stated somewhere a reader can find in one line: this agent has two hands, and a shell is not one
+of them.
 
 ## Middleware for the thing that actually breaks in production
 

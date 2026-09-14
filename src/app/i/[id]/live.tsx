@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { WardenEmit } from "@/agent/incident-context";
+import { isHalted, statusChip } from "@/lib/incident-status";
 
 /**
  * THE TIMELINE. What Warden did, in the order it did it.
@@ -60,7 +61,7 @@ export function Live({
         if (e.kind === "decision") setPhase("halted");
         if (e.kind === "error") setError(e.message);
         if (e.kind === "run.done") {
-          setPhase(e.status === "escalated" ? "halted" : "done");
+          setPhase(isHalted(e.status) ? "halted" : "done");
           router.refresh();
         }
       };
@@ -193,7 +194,7 @@ function render(e: WardenEmit): { kind: string; title: string; meta?: string; de
     case "decision":
       return { kind: "stops", title: e.question, detail: e.because ?? undefined, tone: "ask" };
     case "run.done":
-      return { kind: e.status, title: e.summary, meta: e.downSeconds !== null ? `down ${fmt(e.downSeconds)}` : undefined, tone: e.status === "resolved" ? "ok" : "ask" };
+      return { kind: statusChip(e.status).label, title: e.summary, meta: e.downSeconds !== null ? `down ${fmt(e.downSeconds)}` : undefined, tone: e.status === "resolved" ? "ok" : "ask" };
     case "error":
       return { kind: "problem", title: e.message, tone: "bad" };
     default:

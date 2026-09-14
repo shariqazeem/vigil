@@ -240,7 +240,7 @@ export const act = tool({
     ctx.emit({ kind: "policy", op: input.op, verdict: gate.verdict, rule: gate.rule, reason: gate.reason });
 
     if (gate.verdict === "refuse") {
-      recordAction({ incidentId: ctx.incidentId, serviceId: ctx.serviceId, op: input.op, risk: gate.risk, input: input.input, intent: input.why, verdict: "refuse", rule: gate.rule, reason: gate.reason });
+      recordAction({ incidentId: ctx.incidentId, serviceId: ctx.serviceId, op: input.op, risk: gate.risk, input: args.input, intent: input.why, verdict: "refuse", rule: gate.rule, reason: gate.reason });
       return { refused: true, rule: gate.rule, reason: gate.reason, note: "Do not try to reach the same end another way. Say so in your report instead." };
     }
 
@@ -250,14 +250,16 @@ export const act = tool({
       if (existing?.answer) {
         if (existing.answer !== "approve") return { refused: true, rule: "owner-declined", reason: `The owner was asked and said no: "${existing.answer}".` };
       } else {
-        const proposal = `${input.op}\n${JSON.stringify(input.input)}\n\n${input.why}`;
+        // The PREPARED arguments, not the ones the model typed: the owner is approving the call that
+        // would actually run, defaults filled in and validated, not a sketch of it.
+        const proposal = `${input.op}\n${JSON.stringify(args.input)}\n\n${input.why}`;
         const d =
           existing ??
           openDecision({
             serviceId: ctx.serviceId,
             incidentId: ctx.incidentId,
             kind: "approve_action",
-            question: `Warden wants to ${describeAct(input.op, input.input)} on ${ctx.service.name}. Approve?`,
+            question: `Warden wants to ${describeAct(input.op, args.input)} on ${ctx.service.name}. Approve?`,
             proposal,
             because: gate.reason,
             options: [
@@ -269,13 +271,13 @@ export const act = tool({
           ctx.asked.push({ decisionId: d.id, interruptId: null, op: input.op });
           ctx.emit({ kind: "decision", decisionId: d.id, question: d.question, proposal: d.proposal, because: d.because, interruptId: null });
         }
-        recordAction({ incidentId: ctx.incidentId, serviceId: ctx.serviceId, op: input.op, risk: gate.risk, input: input.input, intent: input.why, verdict: "ask", rule: gate.rule, reason: gate.reason });
-        updateIncident(ctx.incidentId, { status: "escalated" });
+        recordAction({ incidentId: ctx.incidentId, serviceId: ctx.serviceId, op: input.op, risk: gate.risk, input: args.input, intent: input.why, verdict: "ask", rule: gate.rule, reason: gate.reason });
+        updateIncident(ctx.incidentId, { status: "waiting" });
 
         // THE HALT. The run genuinely stops here and is resumed with the owner's answer.
         const answer = context!.interrupt<string>({
           name: "approve_action",
-          reason: { decisionId: d.id, question: d.question, op: input.op, args: JSON.stringify(input.input), why: input.why, because: gate.reason },
+          reason: { decisionId: d.id, question: d.question, op: input.op, args: JSON.stringify(args.input), why: input.why, because: gate.reason },
         });
         if (answer !== "approve") return { refused: true, rule: "owner-declined", reason: `The owner said no: "${answer}".` };
       }

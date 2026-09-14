@@ -36,8 +36,9 @@ to choose what it is allowed to do, and does not get to decide whether it worked
 
 ## What it does
 
-Warden watches services on a clock, with nobody present. When a check fails twice in a row it opens
-an incident and hands it straight to an agent.
+Warden watches services on a clock, with nobody present. When a check has failed its threshold
+number of times in a row — two, by default, so one blip is not an outage — it opens an incident and
+hands it straight to an agent.
 
 The agent investigates: the process table, the logs, recent commits, the diff of a suspicious one, a
 specific file the evidence pointed it at. It gets ten looks, because the service is down while it
@@ -175,7 +176,6 @@ first-class outcome. An operator that escalates well at 3am has done a night's w
   production rather than in configuration.
 - Exercise the disruptive path: `redeploy_previous` is `ask` in the default policy and has not yet
   been the thing that fixed a real outage.
-- Register `TwoHandsOnly` on the live agents, so the declarative boundary is not only in the tests.
 - More probe kinds — a queue depth, a certificate expiry, a disk threshold — since every one of them
   is also a verification step, which is where they pay for themselves.
 - A second host, so the ssh path is tested somewhere other than the machine that also runs Warden.
@@ -233,9 +233,6 @@ npx tsx --env-file=.env scripts/warden.ts handle <incidentId>
   the test suite (including a cooldown case that raises a real interrupt and leaves a real question
   in the decisions table) and by the CLI. None of the three live services has needed to ask anything
   yet.
-- **`TwoHandsOnly`, the declarative `InterventionHandler`, is not registered on the live agents.** It
-  is written and tested; the running agents are held by the hooks, which cover the same ground for
-  the tools that exist.
 - **Confidence is the model's self-report.** The 0.5 floor keeps the obviously unsure from acting.
   It does not make a confident wrong answer right — that is what the probe is for, afterwards.
 - **One VM, three services, SQLite, no sign-up.** Anything you register yourself sits behind a

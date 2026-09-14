@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ship Vigil to the VM: sync the source (never node_modules, .env or the database), build there under
+# Ship Warden to the VM: sync the source (never node_modules, .env or the database), build there under
 # Node 22, then start or reload the pm2 apps from ecosystem.config.cjs.
 set -euo pipefail
 KEY=${WARDEN_SSH_KEY:-$HOME/Documents/ssh-key3.key}
@@ -30,5 +30,5 @@ rm -rf /home/ubuntu/warden/.next-previous
 rsync -a --delete "$STAGE/.next/" /home/ubuntu/warden/.next/
 pm2 startOrReload ecosystem.config.cjs --update-env >/dev/null
 sleep 2; pm2 ls | grep -E "warden"
-curl -s -o /dev/null -w "local :3100 → %{http_code}\n" http://127.0.0.1:3100/
+curl -s -o /dev/null -w "local :3200 → %{http_code}\n" http://127.0.0.1:3200/
 REMOTE

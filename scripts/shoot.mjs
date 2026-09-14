@@ -75,7 +75,14 @@ async function scene(name, body) {
   const video = page.video();
   await ctx.close();
   await browser.close();
-  if (video) console.log(`  ${name}: ${Math.round((Date.now() - t0) / 1000)}s → ${await video.path()}`);
+  // Playwright names videos by a content hash; save each under its scene name so an edit does not
+  // begin by guessing which of four hashes is the one with the incident in it.
+  if (video) {
+    const to = join(OUT, `${name}.webm`);
+    await video.saveAs(to);
+    await video.delete().catch(() => {});
+    console.log(`  ${name}: ${Math.round((Date.now() - t0) / 1000)}s → ${to}`);
+  }
 }
 
 async function readDown(page, px, step = 90, pause = 90) {

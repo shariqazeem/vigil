@@ -25,15 +25,12 @@ begins, and can prove what it did.
 ## Why nobody builds this
 
 The reason this is not a solved problem is not that the steps are hard. It is that the automation is
-scarier than the outage.
+scarier than the outage. An agent with a shell on a production box is a strictly worse problem than
+a site being down for twenty minutes: a model given `run_command` and told firmly, in a system
+prompt, to only run safe things is one confusing log line away from doing something creative.
 
-An agent with a shell on a production box is a strictly worse problem than a site being down for
-twenty minutes. A model that has been given `run_command` and told, firmly, in a system prompt, to
-only run safe things, is one confusing log line away from doing something creative. And "creative"
-on a production machine is the failure mode nobody can insure against.
-
-Every serious version of this product is therefore a question about boundaries, not about prompting.
-I decided up front that two things would never be the model's to decide:
+So this is a question about boundaries, not about prompting. I decided up front that two things
+would never be the model's to decide:
 
 - **whether an act happens** — a per-service policy, written by a human, evaluated in code;
 - **whether it worked** — the check that failed, re-run, with no model anywhere near it.
@@ -55,11 +52,10 @@ never    Warden refuses, and says which rule refused it.
 The decision is one pure function. It takes an operation name, a policy and two numbers — how many
 acts have happened on this incident, how many minutes since the last act on this service — and
 returns a verdict, the rule that decided, and a sentence addressed to the person who wrote the
-policy. No clock. No network. No model. Which means every branch of it is proved by a unit test that
-runs in milliseconds, and the order of those branches is itself a tested property: an unknown
-operation is refused before anything else; forbidden risk is refused before the policy is consulted
-at all; `never` beats `may`; the caps are checked last, so a human reading "you have already acted
-twice on this incident" knows the act was otherwise permitted.
+policy. No clock, no network, no model, so every branch is proved by a unit test that runs in
+milliseconds. The order of those branches is itself a tested property: an unknown operation is
+refused before anything else; forbidden risk is refused before the policy is consulted at all;
+`never` beats `may`; the caps are checked last.
 
 The most useful policy I have written is the one that does nothing. One of the three services Warden
 watches is not mine. It is someone else's production, entered in two competitions I have no part in.
@@ -88,9 +84,9 @@ prove that the most permissive policy anybody could write still cannot reach the
 names the rule: `forbidden-always`.
 
 A path handed to `read_file` or `grep_repo` is resolved against the service's own checkout and
-rejected if it escapes it. That one is not theoretical — in the run I am about to describe, the
-agent tried to read `/home/ubuntu/.pm2/logs/vigil-error.log`, which is outside the repo, and the
-operation refused it. The model did not decide to be careful. The path check did it.
+rejected if it escapes it. In the run below, the agent tried to read
+`/home/ubuntu/.pm2/logs/vigil-error.log`, which is outside the repo, and the operation refused it.
+The model did not decide to be careful. The path check did.
 
 ## The part that makes it an operator
 
@@ -125,18 +121,17 @@ prefer to report.
 If the reading had come back failing, the incident would say: "Warden acted, but the check still
 fails. It is not calling this fixed." And I would be awake, with a full account of what it tried.
 
-Note what this arrangement buys: the diagnosis above was *incomplete*. Warden never established why
-the process stopped. It said so. It acted on the part it could establish, and something other than
-the model decided whether that was enough. An agent that is allowed to be uncertain out loud, inside
-a boundary that does not depend on its certainty, is a different kind of thing from an agent that
-has to sound sure.
+Note what this buys. The diagnosis above was *incomplete* — Warden never established why the process
+stopped, and said so. It acted on the part it could establish, and something other than the model
+decided whether that was enough. An agent allowed to be uncertain out loud, inside a boundary that
+does not depend on its certainty, is a different kind of thing from an agent that has to sound sure.
 
 ## What it is for
 
 Small teams cannot afford someone awake at 3am. They can afford something that does the mechanical
 first four steps carefully, inside a boundary they wrote themselves, and hands back an honest
-account either way — fixed and verified, or here is what I found, here is what I tried, here is what
-you need to do.
+account either way — fixed and verified, or here is what I found, what I tried, and what you need
+to do.
 
 That second outcome is a feature, not a fallback. An honest escalation at 3am is a good night's
 work. Guessing at somebody's production is not.
