@@ -28,13 +28,20 @@ const OUT = join(process.cwd(), "var", "shots");
 const TMP = join(OUT, "cut");
 mkdirSync(TMP, { recursive: true });
 
-/** scene, how much faster than real time, the card, and the line under it */
+/**
+ * scene, how long it should take on screen, the card, and the line under it.
+ *
+ * A TARGET rather than a speed, because the footage is a recording of a real agent working and it
+ * is a different length every time — this afternoon's incident ran in 52 seconds and the one before
+ * it took three minutes. A fixed 2.6× ramp made the second unreadable and the first pointless.
+ * Never slower than real time: speeding a recording up is honest and slowing one down is not.
+ */
 const BEATS = [
-  { clip: "quiet", speed: 1.35, title: "Three real services, on one machine", sub: "Warden checks each of them every few minutes, with nobody watching. This is what a normal night looks like." },
-  { clip: "console", speed: 1.0, title: "You write what it may do", sub: "Sixteen operations, each with a sentence saying what granting it means. Four are refused by name and no policy can turn them on." },
-  { clip: "breaks", speed: 1.9, title: "Something breaks, for real", sub: "A real pm2 stop on the real machine. Warden's own checks notice — two failures in a row, because one blip is not an outage." },
-  { clip: "incident", speed: 2.6, title: "It investigates, decides, acts — and proves it", sub: "Every command it runs, the policy verdict with the rule that decided, and then the same check, re-run." },
-  { clip: "audit", speed: 1.0, title: "And the receipt", sub: "Every call it made, with the exact command and the rule that permitted each one. Copy any of them and run it yourself." },
+  { clip: "quiet", target: 15, title: "Three real services, on one machine", sub: "Warden checks each of them every few minutes, with nobody watching. This is what a normal night looks like." },
+  { clip: "console", target: 30, title: "You write what it may do", sub: "Sixteen operations, each with a sentence saying what granting it means. Four are refused by name and no policy can turn them on." },
+  { clip: "breaks", target: 26, title: "Something breaks, for real", sub: "A real pm2 stop on the real machine. Warden's own checks notice — two failures in a row, because one blip is not an outage." },
+  { clip: "incident", target: 62, title: "It investigates, decides, acts — and proves it", sub: "Every command it runs, the policy verdict with the rule that decided, and then the same check, re-run." },
+  { clip: "audit", target: 17, title: "And the receipt", sub: "Every call it made, with the exact command and the rule that permitted each one. Copy any of them and run it yourself." },
 ];
 
 const H = 944; // libx264 wants even dimensions, and 945 is not one
@@ -68,7 +75,11 @@ for (const [i, b] of BEATS.entries()) {
     process.exit(1);
   }
 
-  const note = b.speed > 1.05 ? `shown at ${b.speed}× — nothing is cut, only sped up` : "real time";
+  // Measure the clip, then work out the ramp that lands it on its target.
+  const { stdout: dur } = await run("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", src]);
+  const seconds = Number(dur.trim());
+  const speed = Math.max(1, Math.min(4, seconds / b.target));
+  const note = speed > 1.05 ? `shown at ${speed.toFixed(1)}× — nothing is cut, only sped up` : "real time";
   await page.setContent(CARD(b.title, b.sub, note), { waitUntil: "networkidle" });
   const png = join(TMP, `card${i}.png`);
   await page.screenshot({ path: png });
@@ -79,11 +90,11 @@ for (const [i, b] of BEATS.entries()) {
 
   const body = join(TMP, `body${i}.mp4`);
   await run("ffmpeg", ["-y", "-loglevel", "error", "-i", src,
-    "-vf", `setpts=${(1 / b.speed).toFixed(4)}*PTS,scale=1512:${H}:force_original_aspect_ratio=decrease,pad=1512:${H}:(ow-iw)/2:(oh-ih)/2:color=0xfbfbfc,fps=30,format=yuv420p`,
+    "-vf", `setpts=${(1 / speed).toFixed(4)}*PTS,scale=1512:${H}:force_original_aspect_ratio=decrease,pad=1512:${H}:(ow-iw)/2:(oh-ih)/2:color=0xfbfbfc,fps=30,format=yuv420p`,
     "-an", "-c:v", "libx264", "-crf", "21", "-preset", "medium", body]);
 
   parts.push(card, body);
-  console.log(`  ${b.clip}: card + ${b.speed}×`);
+  console.log(`  ${b.clip}: ${Math.round(seconds)}s → ${Math.round(seconds / speed)}s (${speed.toFixed(1)}×)`);
 }
 
 const list = join(TMP, "parts.txt");
