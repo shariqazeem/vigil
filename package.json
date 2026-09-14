@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "prebuild": "node scripts/no-dev-server.mjs"
   },
   "dependencies": {
     "@a2a-js/sdk": "^1.1.0",

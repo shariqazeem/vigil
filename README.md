@@ -480,6 +480,12 @@ npx vitest run                   # the suite, offline
 npm run typecheck && npm run lint
 ```
 
+`npm run build` refuses to run while a dev server is up (`scripts/no-dev-server.mjs`). They write
+into the same `.next`, and the symptom of doing it anyway is not a build error — it is the dev
+server returning `Internal Server Error` for every route afterwards, with a stack about a missing
+`_buildManifest.js.tmp.*` that reads like something else entirely. It cost an hour on three separate
+days before it became a check.
+
 Environment, in full, is documented in [`.env.example`](.env.example). Only the model endpoint is
 required: `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` (any OpenAI-compatible gateway), or
 `BEDROCK_MODEL_ID` plus AWS credentials for Amazon Bedrock. Everything else has a working default.
