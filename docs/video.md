@@ -26,15 +26,22 @@ sped up except where a beat says so out loud.
 
 **Capture help.** `node scripts/shoot.mjs --only board` drives the real board with Playwright
 (borrowed from a sibling checkout via `PLAYWRIGHT_FROM`) and records `var/shots/board.webm` plus a
-still. `--only landing`, `--only drop`, `--only watch` and `--only pass` capture the other scenes;
-`--base https://vigil.80.225.209.190.sslip.io` points them at production. Convert with:
+still. The other scenes are `--only landing`, `--only drop`, `--only replay`, `--only watch` and
+`--only pass`; `--base https://vigil.80.225.209.190.sslip.io` points them at production, and
+`--house hh_…` picks the household.
+
+For beats 4 and 5 use **`--only replay`**: it plays a recorded pass back at its own pace — the lamp
+travels, the endpoint log ticks, nodes resolve with their real row counts, and the field freezes on
+the real question — and the board labels it a replay on screen throughout. `--only watch` runs a
+genuinely new pass and deliberately refuses to start on a household that is halted on a question,
+which the demo house is. Either is honest; the replay is free and does not consume the halt.
 
 ```bash
 ffmpeg -i var/shots/board.webm -c:v libx264 -crf 18 -pix_fmt yuv420p var/shots/board.mp4
 ```
 
-Use the shoot for the long, unglamorous takes (the six-minute live watch). Record the cuts you need
-to talk over by hand, so the voice and the motion land together.
+Use the shoot for the long, unglamorous takes. Record the cuts you need to talk over by hand, so the
+voice and the motion land together.
 
 ---
 
@@ -117,6 +124,12 @@ GET saferproducts.gov/RestWebServices/Recall · since 2023-01-01
 ```
 
 Let it run. Do not cut away every two seconds — the point is that it is genuinely working.
+
+If you are recording the **replay** rather than a live pass, the status bar reads "Playing back a
+watch that already happened". Leave it visible and say so in one clause — "this is a recording of a
+real pass, played back at its own pace" — rather than cropping it out. The events, the row counts and
+the timings are the real ones either way, and a video that hides the label is a video that made a
+claim the product refuses to make.
 
 **SAY**
 

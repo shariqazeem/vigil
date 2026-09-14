@@ -114,24 +114,30 @@ await scene("board", async (page) => {
   await sleep(1500);
 });
 
-// The watch itself. This is the long one and the only one that spends money.
+// The watch, replayed. A recorded pass played back at its own pace: the lamp travels, the endpoint
+// log ticks, nodes resolve with their real row counts, and the field freezes on the real question.
+// Honest and free, and the board labels it a replay on screen throughout.
+await scene("replay", async (page) => {
+  if (!house) throw new Error("no household id");
+  await page.goto(`${BASE}/h/${house}`, { waitUntil: "networkidle", timeout: 90_000 });
+  await sleep(2000);
+  const replay = page.getByRole("button", { name: /replay/i });
+  if (!(await replay.count())) throw new Error("no recorded pass to replay");
+  await replay.first().click();
+  await sleep(150_000);
+});
+
+// A watch running for real. Only do this on a household with nothing open — it costs a pass.
 await scene("watch", async (page) => {
   if (!house) throw new Error("no household id");
   await page.goto(`${BASE}/h/${house}`, { waitUntil: "networkidle", timeout: 90_000 });
   await sleep(1500);
   const go = page.getByRole("button", { name: /watch now/i });
-  if (await go.count()) {
-    await go.first().click();
-    // Stay on the field while the lamp moves. A pass is minutes; record six of them.
-    await sleep(360_000);
-  } else {
-    // Already halted on a question: show the replay instead, which is honest and fast.
-    const replay = page.getByRole("button", { name: /replay/i });
-    if (await replay.count()) {
-      await replay.first().click();
-      await sleep(120_000);
-    }
+  if (!(await go.count()) || (await go.first().isDisabled())) {
+    throw new Error("this household is halted on a question — record the replay scene instead");
   }
+  await go.first().click();
+  await sleep(360_000);
 });
 
 // The audit: every URL the last watch actually called.
