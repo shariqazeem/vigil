@@ -6,7 +6,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "./schema";
 
 type DB = BetterSQLite3Database<typeof schema>;
-const DB_PATH = process.env.VIGIL_DB_PATH ?? join(process.cwd(), "var", "vigil.db");
+const DB_PATH = process.env.WARDEN_DB_PATH ?? join(process.cwd(), "var", "warden.db");
 
 function init(): DB {
   const dir = dirname(DB_PATH);
@@ -22,6 +22,6 @@ function init(): DB {
   return database;
 }
 
-const g = globalThis as unknown as { __vigilDb?: DB };
-export const db: DB = g.__vigilDb ?? (g.__vigilDb = init());
+const g = globalThis as unknown as { __wardenDb?: DB };
+export const db: DB = g.__wardenDb ?? (g.__wardenDb = init());
 export { schema };

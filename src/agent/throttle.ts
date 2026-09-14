@@ -3,18 +3,18 @@ import { InvokeModelStage, type LocalAgent, type Plugin } from "@strands-agents/
 /**
  * ONE QUEUE FOR EVERY MODEL CALL IN THE PROCESS.
  *
- * A pass fans out: three lanes run at once, then one match agent per thing. That is the right shape
- * for the work and the wrong shape for a rate-limited endpoint — the first version of this ran head
- * first into `429 quota exceeded (cap 0.5)` and lost every ruling in flight.
+ * Several incidents can be live at once, and each one is a graph that wants the model. That is the
+ * right shape for the work and the wrong shape for a rate-limited endpoint — an earlier build of
+ * this ran head first into `429 quota exceeded` and lost everything in flight.
  *
  * So the fan-out stays and the throttle goes underneath it, as Strands middleware on the model
  * stage: agents believe they are running in parallel, the gateway sees a queue. A 429 waits and
- * comes back rather than failing a node, because a watch that gives up on a rate limit is a watch
- * that quietly stops watching.
+ * comes back rather than failing a node, because an operator that gives up on a rate limit is an
+ * operator that quietly stops operating.
  */
 
-const LIMIT = Number(process.env.VIGIL_MODEL_CONCURRENCY ?? 2);
-const MAX_ATTEMPTS = Number(process.env.VIGIL_MODEL_ATTEMPTS ?? 6);
+const LIMIT = Number(process.env.WARDEN_MODEL_CONCURRENCY ?? 2);
+const MAX_ATTEMPTS = Number(process.env.WARDEN_MODEL_ATTEMPTS ?? 6);
 
 let inFlight = 0;
 const waiting: (() => void)[] = [];

@@ -2,21 +2,21 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 
 /**
- * Who is using Vigil right now. There is no sign-up: a household is yours because a signed cookie
- * says so. Nothing about a person's home should require an account to be created before the agent
- * will look after it, and nothing here is worth more to an attacker than the list of your own
- * things — so the identity is one HMAC-signed random key, held for a year.
+ * Who is using Warden right now. There is no sign-up: a service is yours because a signed cookie
+ * says so. Nothing about watching your own services should require an account to be created before the agent
+ * can start, and nothing here is worth more to an attacker than the list of your own
+ * services — so the identity is one HMAC-signed random key, held for a year.
  */
 export interface Owner {
   key: string;
   kind: "anon";
 }
 
-const COOKIE = "vigil_owner";
+const COOKIE = "warden_owner";
 const YEAR = 60 * 60 * 24 * 365;
 
 function secret(): string {
-  return process.env.VIGIL_SESSION_SECRET?.trim() || "vigil-dev-secret";
+  return process.env.WARDEN_SESSION_SECRET?.trim() || "warden-dev-secret";
 }
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64url");
 const unb64 = (s: string) => Buffer.from(s, "base64url").toString("utf8");
@@ -58,9 +58,9 @@ export function ownerCookie(o: Owner): { name: string; value: string; httpOnly: 
 export const OWNER_COOKIE = COOKIE;
 
 /**
- * A household is shown to its owner. The one exception is the demo household seeded by
- * `scripts/seed-demo.ts`, whose owner key is the literal "demo" — it is public on purpose so a
- * judge with a link can watch a real pass without signing in or seeding anything.
+ * A service is shown to its owner. The one exception is the fleet registered under the literal
+ * owner key "demo", which is public on purpose: anyone with the link can watch Warden work on real
+ * services without signing in or setting anything up.
  */
 export function canView(ownerKey: string, owner: Owner | null): boolean {
   if (ownerKey === "demo") return true;

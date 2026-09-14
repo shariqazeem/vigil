@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
    * The VM builds in a sibling directory whose node_modules is a symlink into the live app; Turbopack
    * refuses a symlink that leaves the project root unless the root is widened to cover both.
    */
-  ...(process.env.VIGIL_TURBO_ROOT ? { turbopack: { root: process.env.VIGIL_TURBO_ROOT } } : {}),
+  ...(process.env.WARDEN_TURBO_ROOT ? { turbopack: { root: process.env.WARDEN_TURBO_ROOT } } : {}),
   /**
    * Loaded from node_modules at runtime, never bundled: the Strands SDK carries optional imports for
    * every provider it supports (S3 offloading, Bedrock, MCP over stdio) and a bundler tries to resolve

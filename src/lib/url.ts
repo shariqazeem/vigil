@@ -4,5 +4,5 @@
  * public origin wins whenever it is configured.
  */
 export function absolute(path: string, req: Request): URL {
-  return new URL(path, process.env.VIGIL_BASE_URL?.trim() || req.url);
+  return new URL(path, process.env.WARDEN_BASE_URL?.trim() || req.url);
 }

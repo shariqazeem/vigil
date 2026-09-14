@@ -1,1 +1,0 @@
-ALTER TABLE `decisions` ADD `source_id` text;

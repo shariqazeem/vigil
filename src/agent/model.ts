@@ -12,17 +12,15 @@ import { OpenAIModel } from "@strands-agents/sdk/models/openai";
  *
  * Roles exist because the work is not all the same difficulty. Reading a photo of a shelf and
  * deciding whether four hundred words of recall prose cover YOUR unit are judgement; listing which
- * federal source applies to a cot is not. `VIGIL_MODEL_HEAVY` may name a stronger model for the
+ * federal source applies to a cot is not. `WARDEN_MODEL_HEAVY` may name a stronger model for the
  * judgement roles; without it every role shares one model and nothing breaks.
  */
-export type Role = "intake" | "triage" | "watch" | "match" | "brief";
+export type Role = "investigate" | "remedy" | "brief";
 
-const HEAVY: Role[] = ["intake", "match"];
+const HEAVY: Role[] = ["investigate", "remedy"];
 /**
- * Reading a photo of a shelf and deciding whether four hundred words of recall prose describe YOUR
- * unit are judgement, and get the better model. Listing which agency covers a cot is not, and gets
- * the fast one — which is also sixteen times cheaper per output token, and a watch that runs every
- * night for years is a cost per night, not a cost per demo.
+ * Reading a stack trace against a diff and deciding what to do about a production system at 3am is
+ * judgement, and gets the better model. Summarising afterwards is not.
  */
 const DEFAULT_MODEL = "MiniMax-M3";
 /**
@@ -31,7 +29,7 @@ const DEFAULT_MODEL = "MiniMax-M3";
  * `429 quota exceeded (cap 0.5)` if the reservation does not fit — measured: 4000 passes, 8000 does
  * not. Nothing Vigil writes is long; the ceiling costs it nothing and a 429 costs it a pass.
  */
-const MAX_TOKENS = Number(process.env.VIGIL_MAX_TOKENS ?? 3000);
+const MAX_TOKENS = Number(process.env.WARDEN_MAX_TOKENS ?? 3000);
 
 export interface MadeModel {
   instance: OpenAIModel | BedrockModel | ModelRouter;
@@ -58,9 +56,9 @@ export const retryStrategy = (): DefaultModelRetryStrategy =>
     backoff: new ExponentialBackoff({ baseMs: 500, maxMs: 20_000, jitter: "decorrelated" }),
   });
 
-export function makeModel(role: Role = "watch"): MadeModel {
+export function makeModel(role: Role = "investigate"): MadeModel {
   const heavy = HEAVY.includes(role);
-  const gatewayId = (heavy ? process.env.VIGIL_MODEL_HEAVY : undefined) ?? process.env.LLM_MODEL ?? DEFAULT_MODEL;
+  const gatewayId = (heavy ? process.env.WARDEN_MODEL_HEAVY : undefined) ?? process.env.LLM_MODEL ?? DEFAULT_MODEL;
   const bedrockId = (heavy ? process.env.BEDROCK_MODEL_ID_HEAVY : undefined) ?? process.env.BEDROCK_MODEL_ID?.trim();
 
   if (!bedrockId) return { instance: gateway(gatewayId), id: gatewayId, provider: "openai-compatible" };
@@ -93,6 +91,6 @@ export function makeModel(role: Role = "watch"): MadeModel {
 
 /** What the product tells the truth about on screen: which model actually ran this pass. */
 export function modelLabel(): string {
-  const m = makeModel("watch");
+  const m = makeModel("investigate");
   return `${m.id} (${m.provider})`;
 }

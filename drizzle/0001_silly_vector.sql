@@ -1,1 +1,0 @@
-ALTER TABLE `passes` ADD `context` text;

@@ -1,34 +1,63 @@
-/* A small reset. Every colour, radius, size and duration lives in styles/tokens.css. */
-*, *::before, *::after { box-sizing: border-box; }
+/* The reset and the few global element rules. Every colour, size and duration is a token. */
+*, *::before, *::after { box-sizing: border-box; border-color: var(--border); }
 
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--night);
+  background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: var(--fs-body);
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
 }
 
-html { color-scheme: dark; scroll-behavior: smooth; }
+html {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* tabular numerals everywhere: latencies, error counts and durations align in a column */
+  font-feature-settings: "rlig" 1, "calt" 1, "tnum" 1, "ss01" 1;
+}
 
 img, video, svg { max-width: 100%; display: block; }
 button, input, select, textarea { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; }
 a { color: inherit; text-decoration: none; }
-::selection { background: var(--lamp); color: var(--lamp-ink); }
+::selection { background: var(--ink); color: var(--bg); }
 
-:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: 3px; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
 
-/* Numbers, ids, endpoints and times are facts; facts are set in mono and can be copied. */
-.mono { font-family: var(--font-mono); font-size: var(--fs-mono); letter-spacing: -0.01em; }
-.serif { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.01em; }
+/* ── the two type utilities used everywhere ───────────────────────── */
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  letter-spacing: var(--tracking-mono);
+  font-variant-numeric: tabular-nums;
+}
+.micro {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
 
-/* The one shared scroll-reveal. Nothing animates on mount; things animate when they arrive. */
-.reveal { opacity: 0; transform: translate3d(0, 14px, 0); transition: opacity var(--dur-3) var(--ease), transform var(--dur-3) var(--ease); }
+/* ── the one shared reveal. Things arrive when you reach them, once. ── */
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 12px, 0);
+  transition: opacity var(--dur-3) var(--ease-out), transform var(--dur-3) var(--ease-out);
+}
 .reveal.is-in { opacity: 1; transform: none; }
 
 .sr-only {
@@ -36,24 +65,82 @@ a { color: inherit; text-decoration: none; }
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
-/* ── the one button ───────────────────────────────────────────────── */
+/* ── buttons: one shape, three weights ────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: var(--s-2);
   padding: 9px 16px;
-  border-radius: 999px;
-  border: 1px solid var(--lamp);
-  background: var(--lamp);
-  color: var(--lamp-ink);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--bg);
   font-size: var(--fs-small);
-  font-weight: 600;
-  cursor: pointer;
-  transition: transform var(--dur-1) var(--ease), filter var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease);
+  font-weight: 550;
+  letter-spacing: -0.008em;
+  white-space: nowrap;
+  transition: transform var(--dur-1) var(--ease-spring), box-shadow var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), opacity var(--dur-1) linear;
+  box-shadow: var(--shadow-sm);
 }
-.btn:hover { filter: brightness(1.08); }
-.btn:active { transform: translateY(1px); }
-.btn:disabled { opacity: 0.45; cursor: default; filter: none; }
-.btn-quiet { background: transparent; border-color: var(--line-strong); color: var(--ink-2); }
-.btn-quiet:hover { border-color: var(--ink-3); color: var(--ink); filter: none; }
-.btn-alarm { background: var(--alarm); border-color: var(--alarm); color: #2a0709; }
+.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+.btn:active { transform: translateY(0); box-shadow: var(--shadow-sm); }
+.btn:disabled { opacity: 0.4; transform: none; box-shadow: none; cursor: default; }
+
+.btn-quiet { background: var(--surface); border-color: var(--border-strong); color: var(--ink); }
+.btn-quiet:hover { border-color: var(--ink-ghost); }
+
+.btn-accent { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn-accent:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+
+.btn-danger { background: var(--down); border-color: var(--down); color: #fff; }
+
+.btn-sm { padding: 6px 12px; font-size: var(--fs-mono); }
+
+/* ── the status chip. The only place colour is allowed to be loud. ── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 7px;
+  border-radius: var(--r-pill);
+  border: 1px solid;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--tracking-micro);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.chip.is-ok { color: var(--ok); background: var(--ok-soft); border-color: var(--ok-border); }
+.chip.is-warn { color: var(--warn); background: var(--warn-soft); border-color: var(--warn-border); }
+.chip.is-down { color: var(--down); background: var(--down-soft); border-color: var(--down-border); }
+.chip.is-unknown { color: var(--unknown); background: var(--bg-sunk); border-color: var(--border-strong); }
+.chip.is-accent { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-border); }
+
+/* a live chip breathes, but only while something is genuinely happening */
+.chip.is-live::before { animation: pulse 1.8s var(--ease-out) infinite; }
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  70% { box-shadow: 0 0 0 5px transparent; opacity: 0.55; }
+}
+
+/* ── a card ───────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── the log well: the one dark surface ───────────────────────────── */
+.well {
+  background: var(--surface-inverse);
+  color: var(--ink-inverse-muted);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  font-size: var(--fs-mono);
+  line-height: 1.65;
+  overflow-x: auto;
+}

@@ -1,53 +1,57 @@
 /**
- * THE SWEEP. The part that makes Vigil a watch rather than a button.
+ * THE SWEEP, on a clock. What makes Warden a watch rather than a button.
  *
- * pm2 runs this on a cron with nobody present. It picks every household whose last look is older
- * than the gap and does a pass over it — which is the whole product: a recall on the thing in your
- * child's room may be published four years after you bought it, and nobody is going to remember to
- * check. A pass that stops to ask a human stays stopped; it is not retried until they answer.
+ * pm2 runs this every few minutes with nobody present. It asks every probe on every service, opens
+ * an incident when something has failed twice in a row, and — this is the part that matters — hands
+ * the new incident straight to the agent. Nobody is woken up. Most nights it writes a row saying
+ * everything answered, and that is the product working.
  *
  *   npx tsx --env-file=.env scripts/sweep.ts
  */
-import { householdsDueForPass, logEvent, openDecisions } from "../src/lib/db/vigil";
-import { runPass } from "../src/agent/watch";
-import type { PassEmit } from "../src/agent/pass-context";
+import { allServices, openIncidents, pendingDecisions } from "../src/lib/db/warden";
+import { sweepService } from "../src/lib/ops/sweep";
+import { handleIncident } from "../src/agent/warden";
 
-const GAP_HOURS = Number(process.env.VIGIL_WATCH_GAP_HOURS ?? 20);
-const MAX_PER_SWEEP = Number(process.env.VIGIL_MAX_PER_SWEEP ?? 6);
-
+const AUTO = process.env.WARDEN_AUTO_HANDLE !== "0";
 const stamp = () => new Date().toISOString().replace("T", " ").slice(0, 19);
 
 async function main() {
-  const due = householdsDueForPass(GAP_HOURS).slice(0, MAX_PER_SWEEP);
-  console.log(`[${stamp()}] sweep: ${due.length} household(s) due (gap ${GAP_HOURS}h)`);
+  const services = allServices().filter((s) => s.state === "watching");
+  console.log(`[${stamp()}] sweep: ${services.length} service(s)`);
 
-  for (const h of due) {
-    // A household already waiting on a human is not woken again. The question is the work.
-    const waiting = openDecisions(h.id);
-    if (waiting.length > 0) {
-      console.log(`  ${h.id} ${h.name}: skipped — waiting on an answer since ${new Date(waiting[0]!.createdAt).toISOString().slice(0, 16)}`);
+  for (const service of services) {
+    const waiting = pendingDecisions(service.id);
+    if (waiting.length) {
+      console.log(`  ${service.name}: waiting on an answer since ${new Date(waiting[0]!.createdAt).toISOString().slice(0, 16)} — not touching it`);
       continue;
     }
 
-    const seen: Record<string, number> = {};
-    const note = (e: PassEmit) => {
-      seen[e.kind] = (seen[e.kind] ?? 0) + 1;
-      if (e.kind === "finding") console.log(`    FOUND ${e.sourceId} [${e.severity}] ${e.title.slice(0, 90)}`);
-      if (e.kind === "decision") console.log(`    STOPPED — ${e.question.slice(0, 110)}`);
-      if (e.kind === "error") console.log(`    error: ${e.message.slice(0, 140)}`);
-    };
+    const r = await sweepService(service, (e) => {
+      if (e.kind === "probe.done" && !e.ok) console.log(`  ${service.name} · ${e.label}: ${e.detail}`);
+      if (e.kind === "incident.open") console.log(`  ${service.name}: INCIDENT ${e.title} — ${e.symptom}`);
+      if (e.kind === "incident.resolved") console.log(`  ${service.name}: back after ${e.downSeconds}s`);
+    });
 
-    const t0 = Date.now();
-    try {
-      const out = await runPass(h.id, "cron", note);
-      console.log(`  ${h.id} ${h.name}: ${out.status} · ${out.findings} finding(s) · ${out.questions} question(s) · ${Math.round((Date.now() - t0) / 1000)}s`);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      console.log(`  ${h.id} ${h.name}: FAILED ${message.slice(0, 160)}`);
-      logEvent(h.id, "system", "sweep.failed", message);
+    if (!AUTO) continue;
+    for (const incident of r.opened) {
+      console.log(`  → handing ${incident.id} to Warden`);
+      try {
+        const out = await handleIncident(incident.id, (e) => {
+          if (e.kind === "diagnosis") console.log(`     diagnosis ${Math.round(e.confidence * 100)}%: ${e.text.split("\n")[0]!.slice(0, 140)}`);
+          if (e.kind === "policy") console.log(`     policy ${e.verdict} ${e.op} (${e.rule})`);
+          if (e.kind === "acted") console.log(`     ${e.op} ${e.ok ? "done" : "failed"}`);
+          if (e.kind === "verify") console.log(`     verify: ${e.ok ? "passes" : "still failing"} — ${e.detail}`);
+          if (e.kind === "decision") console.log(`     STOPPED — ${e.question}`);
+        });
+        console.log(`  ${incident.id}: ${out.status} · ${out.summary}`);
+      } catch (e) {
+        console.log(`  ${incident.id}: FAILED ${e instanceof Error ? e.message : String(e)}`);
+      }
     }
   }
-  console.log(`[${stamp()}] sweep done`);
+
+  const still = openIncidents();
+  console.log(`[${stamp()}] done · ${still.length} still open · ${pendingDecisions().length} waiting on a human`);
 }
 
 main().catch((e) => {

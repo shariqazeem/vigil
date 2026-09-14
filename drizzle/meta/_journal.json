@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1789348063980,
-      "tag": "0000_harsh_liz_osborn",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1789352364867,
-      "tag": "0001_silly_vector",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1789352627614,
-      "tag": "0002_aromatic_komodo",
+      "when": 1789368407050,
+      "tag": "0000_flaky_red_skull",
       "breakpoints": true
     }
   ]

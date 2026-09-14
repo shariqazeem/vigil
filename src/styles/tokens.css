@@ -1,87 +1,138 @@
 /**
- * tokens.css — the single source of every colour, size and duration in Vigil.
+ * tokens.css — the SINGLE design-token source of truth for every Warden surface.
  *
- * THE LOOK. Vigil does its work at three in the morning, so the product is set at night: a deep
- * blue-black field, one warm lamp, and a small number of things that glow. The lamp colour is the
- * agent looking — it is the beam, it is a request in flight, and it is a question waiting for you.
- * Green means a source answered and there was nothing. Red means a government record covers
- * something you own. Nothing else is allowed to be a colour.
+ * THE LOOK. Near-monochrome graphite on warm white, one restrained indigo, and a very
+ * small amount of colour that is never decorative: green means a system is healthy, amber
+ * means Warden is acting or waiting on you, red means something is down. If you see colour
+ * on this product, something is true.
  *
- * Type: Instrument Serif for the few lines that are meant to be read slowly, Manrope for the
- * interface, JetBrains Mono for every number, id, endpoint and timestamp — because a campaign
- * number is a fact you might type into a search box, and facts are set in mono.
+ * Structure follows the house system: 8pt rhythm, three durations and two easings, a fluid
+ * display scale whose tracking tightens as the size grows, tabular numerals everywhere
+ * because latencies and error counts have to align in a column.
+ *
+ * Fonts are set on <html> by next/font in layout.tsx.
  */
 
 :root {
-  /* ── type families (next/font sets the variables on <html>) ─────── */
-  --font-sans: var(--font-manrope, ui-sans-serif), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains-mono, ui-monospace), SFMono-Regular, monospace;
-  --font-display: var(--font-instrument, Georgia), "Times New Roman", serif;
+  /* ── type families ──────────────────────────────────────────────── */
+  /* The inner fallback keeps font-family valid if a next/font variable is missing: a bare
+   * undefined var() invalidates the whole declaration and the browser drops to serif. */
+  --font-sans: var(--font-inter, ui-sans-serif), -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono, ui-monospace), SFMono-Regular, Menlo, monospace;
 
-  /* ── the night ──────────────────────────────────────────────────── */
-  --night: #06090f;          /* the page */
-  --night-2: #090e18;        /* the field behind the objects */
-  --surface: #0d1320;        /* a card */
-  --surface-2: #121a2b;      /* a raised card, an input */
-  --line: #1b2537;
-  --line-soft: #141c2c;
-  --line-strong: #2a3752;
+  /* ── surface + ink ──────────────────────────────────────────────── */
+  --bg: #fbfbfc;            /* paper */
+  --bg-sunk: #f4f5f7;       /* a well: logs, code, anything recessed */
+  --surface: #ffffff;       /* a card */
+  --surface-veil: rgba(255, 255, 255, 0.72);  /* frosted chrome over content */
+  --ink: #14161a;           /* primary */
+  --ink-muted: #5a616c;     /* secondary */
+  --ink-faint: #8b929d;     /* captions, units, chrome */
+  --ink-ghost: #b4bac3;     /* hairline text, disabled */
 
-  --ink: #eef2fb;            /* primary text */
-  --ink-2: #9aa9c4;          /* secondary */
-  --ink-3: #5f6d88;          /* captions, mono chrome */
-  --ink-4: #3b475e;          /* hairline text, disabled */
+  /* ── the one accent. Interactive and brand only, never state. ───── */
+  --accent: #3f3cbb;
+  --accent-strong: #302d95;
+  --accent-soft: #eeeefb;
+  --accent-border: #d5d4f4;
+  --accent-ink: #ffffff;
 
-  /* ── the lamp: the agent looking, and anything waiting on you ───── */
-  --lamp: #ffc76b;
-  --lamp-dim: #a9803a;
-  --lamp-glow: rgba(255, 199, 107, 0.16);
-  --lamp-ink: #1a1205;
+  /* ── system state. These three are the only semantic colours. ───── */
+  --ok: #0f7a4d;            /* healthy: the probe passed */
+  --ok-soft: #eaf6f0;
+  --ok-border: #c2e3d3;
+  --warn: #a8620a;          /* Warden is acting, or waiting on you */
+  --warn-soft: #fdf3e7;
+  --warn-border: #f0dcbe;
+  --down: #c22a2a;          /* the probe failed: it is actually down */
+  --down-soft: #fdeded;
+  --down-border: #f3cccc;
+  --unknown: #6b7280;       /* we did not get an answer — never green */
 
-  /* ── outcomes. Only these three mean anything. ──────────────────── */
-  --clear: #4fd18b;          /* a source answered and there was nothing */
-  --clear-dim: #2b7a54;
-  --clear-glow: rgba(79, 209, 139, 0.14);
-  --alarm: #ff6b6b;          /* a record covers something you own */
-  --alarm-dim: #a83a3a;
-  --alarm-glow: rgba(255, 107, 107, 0.16);
-  --unknown: #6b7a99;        /* asked and unanswered — never green */
+  /* ── lines + elevation ──────────────────────────────────────────── */
+  --border: #e8e9ed;
+  --border-strong: #d6d8de;
+  --shadow-sm: 0 1px 2px rgba(20, 22, 26, 0.05);
+  --shadow-card: 0 1px 2px rgba(20, 22, 26, 0.04), 0 8px 24px -16px rgba(20, 22, 26, 0.18);
+  --shadow-lift: 0 2px 4px rgba(20, 22, 26, 0.05), 0 16px 36px -20px rgba(20, 22, 26, 0.26);
+  --shadow-float: 0 24px 60px -28px rgba(20, 22, 26, 0.34);
+  --scrim-header: rgba(251, 251, 252, 0.76);
 
-  /* ── elevation, radius, motion ──────────────────────────────────── */
-  --r-1: 6px;
-  --r-2: 10px;
-  --r-3: 16px;
-  --r-4: 24px;
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 10px 40px rgba(0, 0, 0, 0.55);
-  --shadow-lamp: 0 0 0 1px rgba(255, 199, 107, 0.25), 0 0 34px -6px rgba(255, 199, 107, 0.5);
-  --shadow-alarm: 0 0 0 1px rgba(255, 107, 107, 0.3), 0 0 40px -8px rgba(255, 107, 107, 0.55);
+  /* ── the one dark surface (the terminal, the log well) ──────────── */
+  --ink-inverse: #eef0f4;
+  --ink-inverse-muted: #99a0ad;
+  --surface-inverse: #16181d;
+  --surface-inverse-raised: #20232a;
+  --border-inverse: #2b2f37;
 
-  --dur-1: 140ms;
-  --dur-2: 320ms;
-  --dur-3: 720ms;
-  --dur-4: 1600ms;
-  --ease: cubic-bezier(0.22, 0.68, 0.24, 1);
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
+  /* ── radii ──────────────────────────────────────────────────────── */
+  --r-sm: 7px;
+  --r-md: 11px;
+  --r-lg: 18px;
+  --r-xl: 26px;
+  --r-pill: 999px;
 
-  /* ── the type scale, fluid ──────────────────────────────────────── */
-  --fs-display: clamp(2.6rem, 1.4rem + 4.6vw, 5.2rem);
-  --fs-title: clamp(1.9rem, 1.2rem + 2.4vw, 3.1rem);
-  --fs-head: clamp(1.25rem, 1.05rem + 0.8vw, 1.6rem);
-  --fs-body: 1rem;
-  --fs-small: 0.875rem;
-  --fs-tiny: 0.78rem;
-  --fs-mono: 0.8125rem;
+  /* ── spacing — 8pt rhythm, 4 is the half-step ───────────────────── */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+  --s-9: 80px;
+  --s-10: 96px;
+  --s-11: 128px;
+  --s-12: 160px;
 
-  --measure: 62ch;
+  /* ── display scale. Tracking tightens as size grows. ────────────── */
+  --fs-display: clamp(2.7rem, 1.3rem + 5.6vw, 4.6rem);
+  --lh-display: 1.01;
+  --tracking-display: -0.038em;
+
+  --fs-h1: clamp(2rem, 1.35rem + 2.7vw, 3rem);
+  --lh-h1: 1.06;
+  --tracking-h1: -0.028em;
+
+  --fs-h2: clamp(1.4rem, 1.12rem + 1.4vw, 1.95rem);
+  --lh-h2: 1.16;
+  --tracking-h2: -0.018em;
+
+  --fs-h3: 1.12rem;
+  --lh-h3: 1.32;
+  --tracking-h3: -0.012em;
+
+  --fs-lead: clamp(1.08rem, 1rem + 0.5vw, 1.28rem);
+  --lh-lead: 1.52;
+  --tracking-lead: -0.011em;
+
+  --fs-body: 0.9375rem;
+  --lh-body: 1.6;
+
+  --fs-small: 0.8125rem;
+  --fs-mono: 0.78125rem;
+  --tracking-mono: 0.012em;
+  --fs-micro: 0.6875rem;
+  --tracking-micro: 0.07em;
+
+  --measure: 64ch;
   --gutter: clamp(1.25rem, 4vw, 3rem);
+
+  /* ── motion: three durations, two easings ───────────────────────── */
+  --dur-1: 160ms;  /* micro: hover, tap, a chip changing state */
+  --dur-2: 320ms;  /* standard: reveal, slide, a row arriving */
+  --dur-3: 640ms;  /* expressive: stagger, count-up, a panel opening */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.42, 0.5, 1);
 }
 
+/* Reduced motion collapses the vocabulary itself, so every transition and animation built
+ * on these tokens goes instant with no per-component fork. New motion MUST use them. */
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --dur-1: 1ms;
-    --dur-2: 1ms;
-    --dur-3: 1ms;
-    --dur-4: 1ms;
+    --dur-1: 0.01ms;
+    --dur-2: 0.01ms;
+    --dur-3: 0.01ms;
   }
 }

@@ -1,149 +1,138 @@
 import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /**
- * VIGIL — the agent that keeps watch over the things you own.
+ * WARDEN — an autonomous operator for software that is already running.
  *
- * A HOUSEHOLD is a place with THINGS in it: a car, a cot, a heater, a bottle of supplements.
- * On a schedule the agent runs a PASS over them, and every question it asks a government API is
- * recorded as a CHECK — including the ones that answered nothing, because "we looked and it was
- * quiet" is the product's most common true statement and it must be provable.
+ * A SERVICE is something someone depends on. PROBES are the questions Warden asks it, and every
+ * answer is a READING — including the boring ones, because "it has been fine for nine hours" is a
+ * claim that needs a record behind it.
  *
- * When a check turns something up the agent writes a FINDING, and every field on it is lifted
- * verbatim from the source that carries the sourceId. A finding it cannot resolve alone becomes a
- * DECISION — a real Strands interrupt, persisted here so it survives the browser closing. What the
- * human answers becomes STANDING: a rule in their own words, so the agent never asks it twice.
+ * When a probe fails, an INCIDENT opens and stays open until the same probe passes again. Inside
+ * it, every operation Warden runs is an ACTION carrying the exact command, the policy verdict that
+ * allowed it, and what came back. A fix is only a fix when the reading that failed reads clean —
+ * and that check is code, not a model.
+ *
+ * Anything the policy will not let Warden do alone becomes a DECISION: a real halt, held here
+ * until a human answers.
  */
 
-export const households = sqliteTable("households", {
+export const services = sqliteTable("services", {
   id: text("id").primaryKey(),
   ownerKey: text("owner_key").notNull(),
   name: text("name").notNull(),
-  /** free text the owner gave about the place — feeds the intake agent, never displayed as fact */
-  place: text("place"),
-  /** "idle" | "watching" — watching means the sweep will pick it up */
-  watchState: text("watch_state").notNull().default("watching"),
-  lastPassAt: integer("last_pass_at"),
+  /** one line about what breaks for a human when this is down */
+  matters: text("matters"),
+  /** "local", or an ssh destination Warden holds a key for */
+  host: text("host").notNull().default("local"),
+  sshKey: text("ssh_key"),
+  /** absolute path to the checkout, when it has one */
+  repo: text("repo"),
+  /** the pm2 process name, when it is a pm2 service */
+  process: text("process"),
+  /** the node binary it runs under, when it is not the one on PATH */
+  nodeBin: text("node_bin"),
+  /** JSON Policy — what Warden may do here without asking */
+  policy: text("policy").notNull(),
+  /** "watching" | "paused" */
+  state: text("state").notNull().default("watching"),
+  lastSweptAt: integer("last_swept_at"),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
 
-export const things = sqliteTable("things", {
+export const probes = sqliteTable("probes", {
   id: text("id").primaryKey(),
-  householdId: text("household_id").notNull(),
-  /** what kind of watch applies: "vehicle" | "product" | "ingestible" */
+  serviceId: text("service_id").notNull(),
+  /** what it asks: "http" | "process" */
   kind: text("kind").notNull(),
-  /** what the owner calls it — "Ayesha's car seat", not a SKU */
+  /** the human name for what this proves: "the site answers", "the worker is up" */
   label: text("label").notNull(),
-  make: text("make"),
-  model: text("model"),
-  year: integer("year"),
-  /** VIN, serial, lot or model number — whatever identifies THIS unit */
-  identifier: text("identifier"),
-  /** the government's own taxonomy word when we have one: "child restraint", "crib", "space heater" */
-  category: text("category"),
-  /** when they got it — decides whether a date-windowed recall covers this unit */
-  acquiredAt: integer("acquired_at"),
-  /** second-hand goods are invisible to every manufacturer's owner list; that is the point */
-  secondHand: integer("second_hand", { mode: "boolean" }).notNull().default(false),
-  note: text("note"),
-  /** the intake agent's own confidence in what it read, 0..1 — below the floor it asks */
-  confidence: real("confidence").notNull().default(1),
-  /** JSON string[]: what it could not read. A thing with unknowns is watched, not guessed at. */
-  unknowns: text("unknowns").notNull().default("[]"),
-  /** the vPIC decode, verbatim, when the identifier was a VIN */
-  decoded: text("decoded"),
-  /** "photo" | "typed" | "receipt" | "vin" */
-  addedVia: text("added_via").notNull().default("typed"),
-  addedAt: integer("added_at").notNull(),
-  retiredAt: integer("retired_at"),
+  /** JSON: the operation input — a url and its expectations, or a process name */
+  spec: text("spec").notNull(),
+  everySeconds: integer("every_seconds").notNull().default(300),
+  /** consecutive failures before an incident opens — one blip is not an outage */
+  failuresToOpen: integer("failures_to_open").notNull().default(2),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at").notNull(),
 });
 
-export const passes = sqliteTable("passes", {
+export const readings = sqliteTable("readings", {
   id: text("id").primaryKey(),
-  householdId: text("household_id").notNull(),
-  /** "manual" | "cron" | "new_thing" — why the agent woke up */
-  trigger: text("trigger").notNull().default("manual"),
-  /** "running" | "clean" | "found" | "interrupted" | "failed" */
-  status: text("status").notNull().default("running"),
-  thingsChecked: integer("things_checked").notNull().default(0),
-  sourcesOk: integer("sources_ok").notNull().default(0),
-  sourcesFailed: integer("sources_failed").notNull().default(0),
-  /** how many government rows the agent actually read this pass */
-  rowsSeen: integer("rows_seen").notNull().default(0),
-  findingsNew: integer("findings_new").notNull().default(0),
-  startedAt: integer("started_at").notNull(),
-  finishedAt: integer("finished_at"),
-  /**
-   * The pass's own working state, written when it halts on a question. A run that stops to ask
-   * someone something may wait days; the process it started in will not. This is what lets the
-   * same run be picked up after a restart instead of starting over.
-   */
-  context: text("context"),
-});
-
-export const checks = sqliteTable("checks", {
-  id: text("id").primaryKey(),
-  passId: text("pass_id").notNull(),
-  householdId: text("household_id").notNull(),
-  thingId: text("thing_id").notNull(),
-  /** "nhtsa-recalls" | "nhtsa-complaints" | "nhtsa-vpic" | "cpsc-recalls" | "openfda" */
-  source: text("source").notNull(),
-  /** the exact URL called, so anyone can curl the same thing and get the same answer */
-  endpoint: text("endpoint").notNull(),
+  probeId: text("probe_id").notNull(),
+  serviceId: text("service_id").notNull(),
   ok: integer("ok", { mode: "boolean" }).notNull(),
-  rowCount: integer("row_count").notNull().default(0),
+  /** what came back, in one line, from the operation itself */
+  detail: text("detail").notNull(),
   latencyMs: integer("latency_ms").notNull().default(0),
-  error: text("error"),
+  /** set when this reading was taken to verify a fix */
+  incidentId: text("incident_id"),
   at: integer("at").notNull(),
 });
 
-export const findings = sqliteTable("findings", {
+export const incidents = sqliteTable("incidents", {
   id: text("id").primaryKey(),
-  householdId: text("household_id").notNull(),
-  thingId: text("thing_id").notNull(),
-  passId: text("pass_id").notNull(),
-  /** "recall" (published, confirmed) | "pattern" (strangers reporting the same failure) | "advisory" */
-  kind: text("kind").notNull(),
-  /** "critical" (park it / injury / death) | "high" | "watch" */
-  severity: text("severity").notNull().default("high"),
-  source: text("source").notNull(),
-  /** the campaign number, recall number or cluster key — the thing a judge can look up */
-  sourceId: text("source_id").notNull(),
-  sourceUrl: text("source_url"),
+  serviceId: text("service_id").notNull(),
+  probeId: text("probe_id").notNull(),
   title: text("title").notNull(),
-  /** the government's own words. Never the model's. */
-  consequence: text("consequence"),
-  remedy: text("remedy"),
-  component: text("component"),
-  unitsAffected: integer("units_affected"),
-  /** the match agent's confidence that this row is about THIS unit, 0..1 */
-  confidence: real("confidence").notNull().default(1),
-  /** in the agent's words: why this row covers this thing, citing the fields it matched on */
-  matchReason: text("match_reason"),
-  /** the untouched source row */
-  raw: text("raw"),
-  /** "open" | "acknowledged" | "scheduled" | "dismissed" | "held" */
-  state: text("state").notNull().default("open"),
-  resolutionNote: text("resolution_note"),
-  createdAt: integer("created_at").notNull(),
+  /** "open" | "investigating" | "acting" | "verifying" | "resolved" | "escalated" | "gave_up" */
+  status: text("status").notNull().default("open"),
+  /** "down" | "degraded" */
+  severity: text("severity").notNull().default("down"),
+  /** the reading that opened it, verbatim */
+  symptom: text("symptom").notNull(),
+  /** Warden's account of the cause, citing the evidence it read */
+  diagnosis: text("diagnosis"),
+  /** the commit, file or process the diagnosis points at */
+  suspect: text("suspect"),
+  /** how sure it is, 0..1 — below the floor it does not act, it asks */
+  confidence: real("confidence"),
+  /** what fixed it, or why nobody could */
+  resolution: text("resolution"),
+  /** the reading that proved it fixed. Without one, an incident is not resolved. */
+  verifiedByReadingId: text("verified_by_reading_id"),
+  openedAt: integer("opened_at").notNull(),
   resolvedAt: integer("resolved_at"),
+  /** seconds actually down: opened → the reading that proved it back */
+  downSeconds: integer("down_seconds"),
+});
+
+export const actions = sqliteTable("actions", {
+  id: text("id").primaryKey(),
+  incidentId: text("incident_id").notNull(),
+  serviceId: text("service_id").notNull(),
+  /** an operation name from the catalogue. There is no other kind of action. */
+  op: text("op").notNull(),
+  risk: text("risk").notNull(),
+  /** JSON arguments, as validated */
+  input: text("input").notNull(),
+  /** why Warden wanted this, in its own words, before it knew the answer */
+  intent: text("intent"),
+  /** "allow" | "ask" | "refuse" — the policy's answer */
+  verdict: text("verdict").notNull(),
+  rule: text("rule").notNull(),
+  reason: text("reason").notNull(),
+  /** the exact command that ran, printable and checkable by a human */
+  command: text("command"),
+  ok: integer("ok", { mode: "boolean" }),
+  output: text("output"),
+  exitCode: integer("exit_code"),
+  ms: integer("ms"),
+  at: integer("at").notNull(),
 });
 
 export const decisions = sqliteTable("decisions", {
   id: text("id").primaryKey(),
-  householdId: text("household_id").notNull(),
-  passId: text("pass_id"),
-  findingId: text("finding_id"),
-  thingId: text("thing_id"),
-  /** the government record this question is about, so the same question is never opened twice */
-  sourceId: text("source_id"),
-  /** the Strands Interrupt this decision IS — the run is genuinely halted until it is answered */
+  serviceId: text("service_id").notNull(),
+  incidentId: text("incident_id"),
+  /** the Strands Interrupt this decision IS: the run halts until it is answered */
   interruptId: text("interrupt_id"),
-  interruptName: text("interrupt_name"),
-  /** "confirm_match" | "notify_others" | "file_report" | "identify" | "dismissable" */
+  /** "approve_action" | "choose_fix" | "give_up" */
   kind: text("kind").notNull(),
   question: text("question").notNull(),
-  context: text("context"),
+  /** what Warden would do, exactly — so a human approves the thing, not a summary of it */
+  proposal: text("proposal"),
+  /** the policy sentence that made this a question rather than an act */
+  because: text("because"),
   /** JSON [{ value, label, tone }] */
   options: text("options").notNull(),
   answer: text("answer"),
@@ -153,12 +142,10 @@ export const decisions = sqliteTable("decisions", {
   createdAt: integer("created_at").notNull(),
 });
 
-/** What the human decided, kept as a rule in their own words, so the agent never asks twice. */
+/** What a human decided, kept in their words, so Warden does not ask the same thing twice. */
 export const standing = sqliteTable("standing", {
   id: text("id").primaryKey(),
-  householdId: text("household_id").notNull(),
-  /** the thing it applies to, or null for the whole household */
-  thingId: text("thing_id"),
+  serviceId: text("service_id").notNull(),
   text: text("text").notNull(),
   fromDecisionId: text("from_decision_id"),
   createdAt: integer("created_at").notNull(),
@@ -166,20 +153,20 @@ export const standing = sqliteTable("standing", {
 
 export const events = sqliteTable("events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  householdId: text("household_id").notNull(),
+  serviceId: text("service_id").notNull(),
+  incidentId: text("incident_id"),
   kind: text("kind").notNull(),
   detail: text("detail"),
-  /** which part did it: "intake" | "watch" | "match" | "brief" | "human" | "system" */
+  /** "sweep" | "investigate" | "fix" | "verify" | "policy" | "human" | "system" */
   actor: text("actor").notNull(),
-  refId: text("ref_id"),
   createdAt: integer("created_at").notNull(),
 });
 
-export type Household = typeof households.$inferSelect;
-export type Thing = typeof things.$inferSelect;
-export type Pass = typeof passes.$inferSelect;
-export type Check = typeof checks.$inferSelect;
-export type Finding = typeof findings.$inferSelect;
+export type Service = typeof services.$inferSelect;
+export type Probe = typeof probes.$inferSelect;
+export type Reading = typeof readings.$inferSelect;
+export type Incident = typeof incidents.$inferSelect;
+export type Action = typeof actions.$inferSelect;
 export type Decision = typeof decisions.$inferSelect;
 export type Standing = typeof standing.$inferSelect;
-export type VigilEvent = typeof events.$inferSelect;
+export type WardenEvent = typeof events.$inferSelect;

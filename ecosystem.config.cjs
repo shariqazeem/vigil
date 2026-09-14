@@ -2,9 +2,10 @@
 const node = "/home/ubuntu/.nvm/versions/node/v22.23.2/bin/node";
 module.exports = {
   apps: [
-    { name: "vigil", cwd: __dirname, script: "node_modules/next/dist/bin/next", args: "start -p 3100", interpreter: node, env: { NODE_ENV: "production" }, max_memory_restart: "700M" },
-    // the watch itself: a pass over every household whose last look is older than the gap. This is
-    // the part that makes Vigil a watch rather than a button — it runs at 3am with nobody present.
-    { name: "vigil-sweep", cwd: __dirname, script: "node_modules/tsx/dist/cli.mjs", args: "--env-file=.env scripts/sweep.ts", interpreter: node, cron_restart: "0 */6 * * *", autorestart: false },
+    { name: "warden", cwd: __dirname, script: "node_modules/next/dist/bin/next", args: "start -p 3200", interpreter: node, env: { NODE_ENV: "production" }, max_memory_restart: "700M" },
+    // The watch itself. Every ten minutes, with nobody present: ask every probe, open an incident
+    // when something has failed twice, and hand it straight to the agent. This is the difference
+    // between an operator and a button.
+    { name: "warden-sweep", cwd: __dirname, script: "node_modules/tsx/dist/cli.mjs", args: "--env-file=.env scripts/sweep.ts", interpreter: node, cron_restart: "*/10 * * * *", autorestart: false },
   ],
 };
