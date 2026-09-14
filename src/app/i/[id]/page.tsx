@@ -72,6 +72,15 @@ export default async function IncidentPage({ params, searchParams }: { params: P
         </div>
       ) : null}
 
+      {!service.process && !service.repo && (service.host === "local" || !service.host) ? (
+        <p className="sp-reach">
+          <b>This service is watched over the network only.</b> Warden can tell you the check stopped answering and nothing more —
+          there are no logs to read, no process table to look at and no commits to compare, because it has no machine of yours to
+          reach. Handing it over will produce an honest shrug. <Link href={`/s/${service.id}`}>Give it a machine</Link> and the same
+          incident becomes something it can actually work.
+        </p>
+      ) : null}
+
       <Live incidentId={id} open={question} canRun={!resolved} resolved={resolved} autoStart={auto && !resolved && !question} />
 
       {incident.resolution ? (

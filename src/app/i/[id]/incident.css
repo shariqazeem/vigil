@@ -162,3 +162,18 @@
 @media (max-width: 640px) {
   .in-table th:nth-child(2), .in-table td:nth-child(2) { display: none; }
 }
+
+/* Said on an incident for a service Warden has no machine for. Same treatment as the service page. */
+.sp-reach {
+  margin: var(--s-5) 0 0;
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-sunk);
+  color: var(--ink-muted);
+  font-size: var(--fs-small);
+  line-height: 1.6;
+  max-width: 72ch;
+}
+.sp-reach b { color: var(--ink); font-weight: 600; }
+.sp-reach a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
