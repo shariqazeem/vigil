@@ -1,0 +1,195 @@
+/**
+ * THE FRONT DOOR.
+ *
+ * Scoped to `.lx` so nothing here can leak into the app, which has a different job: the console is
+ * a working surface and should be quiet, and this page has about four seconds to say what Warden is
+ * to somebody who has never heard of it.
+ *
+ * It runs on the product's own tokens — the same paper, the same indigo, the same three durations —
+ * with one thing the app does not get: a display scale big enough to be read as a statement rather
+ * than as a heading.
+ */
+
+.lx {
+  --lx-gutter: clamp(20px, 5vw, 64px);
+  --lx-max: 1180px;
+  position: relative;
+  background: var(--bg);
+  color: var(--ink);
+  overflow-x: clip;
+}
+
+/* A single fixed grain layer. Cheap, non-interactive, and the reason the paper reads as paper
+   rather than as #fbfbfc. */
+.lx::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+}
+.lx > * { position: relative; z-index: 1; }
+
+.lx-wrap { max-width: var(--lx-max); margin: 0 auto; padding-inline: var(--lx-gutter); }
+
+/* ── type ─────────────────────────────────────────────────────────────── */
+
+.lx .display {
+  /* Sized against the COLUMN, not the viewport: the hero copy sits in ~640px, and a scale tuned to
+     the full width put one word on each line and pushed the lede below the fold. */
+  font-size: clamp(2.1rem, 3.9vw, 3.5rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+  margin: 0;
+  text-wrap: balance;
+}
+.lx .display .soft { color: var(--ink-faint); }
+.lx .h2 {
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  margin: 0;
+  text-wrap: balance;
+}
+.lx .h3 { font-size: clamp(1.15rem, 1.9vw, 1.45rem); line-height: 1.2; letter-spacing: -0.018em; font-weight: 600; margin: 0; }
+.lx .lede { font-size: clamp(0.99rem, 1.1vw, 1.12rem); line-height: 1.55; color: var(--ink-muted); margin: 0; }
+.lx .eyebrow {
+  display: inline-flex; align-items: center; gap: 9px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.lx .eyebrow i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; animation: pulse 2.6s var(--ease-out) infinite; }
+
+/* ── nav ──────────────────────────────────────────────────────────────── */
+
+.lx-nav { position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: saturate(180%) blur(16px); -webkit-backdrop-filter: saturate(180%) blur(16px); border-bottom: 1px solid transparent; transition: border-color var(--dur-2) var(--ease-out); }
+.lx-nav-in { max-width: var(--lx-max); margin: 0 auto; padding: var(--s-3) var(--lx-gutter); display: flex; align-items: center; gap: var(--s-5); }
+.lx-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.02em; font-size: 1.02rem; }
+.lx-mark { width: 15px; height: 15px; border-radius: 5px; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); flex: none; transition: transform var(--dur-2) var(--ease-spring); }
+.lx-brand:hover .lx-mark { transform: rotate(45deg); }
+.lx-links { display: flex; gap: var(--s-1); margin-left: auto; }
+.lx-link { padding: 7px 13px; border-radius: var(--r-pill); font-size: var(--fs-small); color: var(--ink-muted); white-space: nowrap; transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out); }
+.lx-link:hover { background: var(--bg-sunk); color: var(--ink); }
+
+/* ── buttons ──────────────────────────────────────────────────────────── */
+
+.lx .btn-lg { padding: 13px 24px; font-size: 0.95rem; }
+
+/* ── hero ─────────────────────────────────────────────────────────────── */
+
+.lx-hero { padding: clamp(var(--s-6), 4vw, var(--s-8)) 0 var(--s-8); }
+.lx-hero-in { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr); gap: clamp(var(--s-6), 5vw, var(--s-8)); align-items: center; }
+.lx-hero-copy > * + * { margin-top: var(--s-4); }
+.lx-hero-copy .display { margin-block: var(--s-3) var(--s-2); }
+.lx-hero .lede { max-width: 46ch; }
+.lx-actions { display: flex; gap: var(--s-3); flex-wrap: wrap; }
+.lx-hero-stat { display: flex; gap: var(--s-6); flex-wrap: wrap; padding-top: var(--s-4); border-top: 1px solid var(--border); }
+.lx-hs { display: flex; flex-direction: column; gap: 1px; }
+.lx-hs-v { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.lx-hs-k { font-size: var(--fs-mono); color: var(--ink-faint); }
+
+/* the live board beside the words — the product, not a drawing of it */
+.lx-board { border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--shadow-float); overflow: hidden; }
+.lx-board-bar { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--border); background: var(--bg-sunk); }
+.lx-dots { display: flex; gap: 6px; }
+.lx-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); }
+.lx-board-t { font-family: var(--font-mono); font-size: var(--fs-micro); color: var(--ink-faint); letter-spacing: 0.06em; }
+.lx-board-body { padding: var(--s-4); display: grid; gap: var(--s-3); }
+.lx-svc { display: grid; gap: 7px; padding: var(--s-3) var(--s-4); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); transition: border-color var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-spring); }
+.lx-svc:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.lx-svc-h { display: flex; align-items: center; gap: var(--s-3); }
+.lx-svc-n { font-weight: 550; font-size: var(--fs-small); }
+.lx-svc-p { margin-left: auto; }
+.lx-spark { display: inline-flex; gap: 2px; align-items: flex-end; }
+.lx-spark i { width: 3px; height: 12px; border-radius: 1px; background: var(--ok); opacity: 0.45; }
+.lx-spark i.bad { background: var(--down); opacity: 1; }
+.lx-svc-d { font-family: var(--font-mono); font-size: var(--fs-micro); color: var(--ink-ghost); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── scenes ───────────────────────────────────────────────────────────── */
+
+.lx-scene { padding: clamp(var(--s-8), 8vw, var(--s-10)) 0; border-top: 1px solid var(--border); }
+.lx-head { max-width: 62ch; }
+.lx-head > * + * { margin-top: var(--s-5); }
+.lx-head .eyebrow + .h2 { margin-top: var(--s-4); }
+
+/* the four steps */
+.lx-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-4); margin-top: var(--s-7); counter-reset: step; }
+.lx-step { position: relative; padding: var(--s-5); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); transition: border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-spring); }
+.lx-step:hover { border-color: var(--accent-border); box-shadow: var(--shadow-card); transform: translateY(-2px); }
+.lx-step-n { font-family: var(--font-mono); font-size: var(--fs-micro); color: var(--accent); letter-spacing: 0.14em; }
+.lx-step h3 { margin: var(--s-3) 0 var(--s-2); font-size: 1.02rem; font-weight: 600; letter-spacing: -0.015em; }
+.lx-step p { margin: 0; font-size: var(--fs-small); color: var(--ink-muted); line-height: 1.55; }
+
+/* the two boundaries, stated big */
+.lx-bounds { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); margin-top: var(--s-7); }
+.lx-bound { padding: var(--s-6); border: 1px solid var(--border); border-radius: var(--r-lg); background: linear-gradient(180deg, var(--bg-sunk), var(--surface) 60%); }
+.lx-bound h3 { margin: 0 0 var(--s-3); }
+.lx-bound p { margin: 0 0 var(--s-3); color: var(--ink-muted); font-size: var(--fs-small); line-height: 1.6; }
+.lx-bound pre { margin: var(--s-4) 0 0; padding: var(--s-3) var(--s-4); }
+
+/* the policy table */
+.lx-policy { margin-top: var(--s-7); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; background: var(--surface); }
+.lx-prow { display: grid; grid-template-columns: minmax(0, 190px) minmax(0, 1fr) auto; gap: var(--s-4); align-items: center; padding: var(--s-3) var(--s-5); border-bottom: 1px solid var(--border); }
+.lx-prow:last-child { border-bottom: 0; }
+.lx-prow.locked { background: var(--bg-sunk); }
+.lx-pop { font-family: var(--font-mono); font-size: var(--fs-mono); font-weight: 500; }
+.lx-pd { font-size: var(--fs-small); color: var(--ink-muted); }
+
+/* proof */
+.lx-proof { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s-4); margin-top: var(--s-7); }
+.lx-pf { padding: var(--s-5); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.lx-pf-v { font-size: 2rem; font-weight: 600; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; display: block; }
+.lx-pf-k { font-size: var(--fs-small); color: var(--ink-faint); margin-top: 2px; display: block; }
+
+.lx-quote { margin-top: var(--s-7); padding: var(--s-6); border-left: 2px solid var(--accent); background: var(--bg-sunk); border-radius: 0 var(--r-lg) var(--r-lg) 0; }
+.lx-quote p { margin: 0; font-size: clamp(1rem, 1.5vw, 1.15rem); line-height: 1.6; color: var(--ink); max-width: 70ch; }
+.lx-quote cite { display: block; margin-top: var(--s-4); font-family: var(--font-mono); font-size: var(--fs-micro); color: var(--ink-faint); font-style: normal; letter-spacing: 0.08em; }
+
+/* close */
+.lx-close { text-align: center; padding: clamp(var(--s-9), 10vw, var(--s-11)) 0; border-top: 1px solid var(--border); }
+.lx-close .display { max-width: 20ch; margin: 0 auto var(--s-5); }
+.lx-close .lede { max-width: 54ch; margin: 0 auto var(--s-7); }
+.lx-close .lx-actions { justify-content: center; }
+
+/* footer */
+.lx-foot { border-top: 1px solid var(--border); background: var(--bg-sunk); padding: var(--s-8) 0 var(--s-7); }
+.lx-foot-in { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr)); gap: var(--s-6); }
+.lx-foot-tag { margin: var(--s-4) 0 0; color: var(--ink-faint); font-size: var(--fs-small); max-width: 40ch; line-height: 1.6; }
+.lx-fc h4 { margin: 0 0 var(--s-3); font-family: var(--font-mono); font-size: var(--fs-micro); letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-faint); font-weight: 400; }
+.lx-fc a { display: block; padding: 4px 0; font-size: var(--fs-small); color: var(--ink-muted); transition: color var(--dur-1) var(--ease-out); }
+.lx-fc a:hover { color: var(--accent); }
+.lx-foot-base { max-width: var(--lx-max); margin: var(--s-7) auto 0; padding-inline: var(--lx-gutter); padding-top: var(--s-5); border-top: 1px solid var(--border); display: flex; gap: var(--s-4); flex-wrap: wrap; align-items: center; }
+.lx-foot-base span, .lx-foot-base a { font-family: var(--font-mono); font-size: var(--fs-micro); color: var(--ink-ghost); }
+.lx-foot-base a:hover { color: var(--accent); }
+
+/* ── arrival ──────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: no-preference) {
+  .lx-rise { animation: lx-rise var(--dur-3) var(--ease-out) both; }
+  .lx-rise-1 { animation-delay: 60ms; }
+  .lx-rise-2 { animation-delay: 130ms; }
+  .lx-rise-3 { animation-delay: 210ms; }
+  .lx-rise-4 { animation-delay: 300ms; }
+}
+@keyframes lx-rise { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 960px) {
+  .lx-hero-in { grid-template-columns: 1fr; }
+  .lx-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lx-bounds { grid-template-columns: 1fr; }
+  .lx-foot-in { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .lx-steps { grid-template-columns: 1fr; }
+  .lx-prow { grid-template-columns: 1fr auto; }
+  .lx-prow .lx-pd { display: none; }
+  .lx-links { display: none; }
+  .lx-foot-in { grid-template-columns: 1fr; }
+}

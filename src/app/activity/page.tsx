@@ -49,7 +49,7 @@ export default async function ActivityPage() {
   return (
     <main className="ac">
       <p className="in-crumb micro">
-        <Link href="/">warden</Link> / activity
+        <Link href="/fleet">warden</Link> / activity
       </p>
 
       <header className="ac-head">

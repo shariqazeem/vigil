@@ -1,0 +1,55 @@
+/* The first minute. Landing typography, one column, nothing between a person and the door. */
+
+.sx-main { padding: clamp(var(--s-7), 7vw, var(--s-10)) 0 var(--s-11); }
+.sx-head { max-width: 46ch; }
+.sx-head > * + * { margin-top: var(--s-5); }
+/* the display sits on a 1.02 line-height box, so its descender lands close to whatever follows */
+.sx-head .display + .lede { margin-top: var(--s-6); }
+
+/* ── the doors ────────────────────────────────────────────────────── */
+
+.sx-doors { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: var(--s-4); margin-top: clamp(var(--s-7), 6vw, var(--s-9)); align-items: start; }
+.sx-door-col { display: grid; gap: var(--s-4); }
+
+.sx-door {
+  display: block;
+  padding: var(--s-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  transition: border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-spring);
+}
+.sx-door-main { display: grid; gap: var(--s-3); border-color: var(--accent-border); background: linear-gradient(180deg, var(--accent-soft), var(--surface) 62%); }
+.sx-door-main:hover { transform: translateY(-2px); box-shadow: var(--shadow-lift); border-color: var(--accent); }
+.sx-door-k { font-family: var(--font-mono); font-size: var(--fs-micro); letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); display: inline-flex; align-items: center; gap: 7px; }
+.sx-door-b { color: var(--ink-muted); font-size: var(--fs-small); line-height: 1.6; max-width: 46ch; }
+.sx-door-go { margin-top: var(--s-2); display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 600; font-size: var(--fs-small); }
+
+.sx-door-sm { padding: 0; overflow: hidden; }
+.sx-door-sm.is-open { border-color: var(--border-strong); box-shadow: var(--shadow-card); }
+.sx-door-hit { display: grid; gap: 6px; width: 100%; text-align: left; padding: var(--s-5); }
+.sx-door-hit:hover { background: var(--bg-sunk); }
+.sx-door-t { font-size: var(--fs-small); font-weight: 550; }
+.sx-door-body { padding: 0 var(--s-5) var(--s-5); display: grid; gap: var(--s-4); animation: sx-open var(--dur-3) var(--ease-out); }
+.sx-door-body p { margin: 0; font-size: var(--fs-small); color: var(--ink-muted); line-height: 1.6; }
+@keyframes sx-open { from { opacity: 0; transform: translate3d(0, -6px, 0); } to { opacity: 1; transform: none; } }
+
+/* ── the key, once ────────────────────────────────────────────────── */
+
+.sx-card { margin-top: clamp(var(--s-7), 6vw, var(--s-9)); padding: var(--s-6); border: 1px solid var(--accent-border); border-radius: var(--r-lg); background: linear-gradient(180deg, var(--accent-soft), var(--surface) 58%); max-width: 62ch; }
+.sx-card > * + * { margin-top: var(--s-4); }
+.sx-card p { margin: 0; color: var(--ink-muted); font-size: var(--fs-small); line-height: 1.6; }
+.sx-key { padding: var(--s-4); white-space: pre-wrap; overflow-wrap: anywhere; user-select: all; }
+.sx-row { display: flex; gap: var(--s-3); flex-wrap: wrap; }
+
+/* ── what happens next ────────────────────────────────────────────── */
+
+.sx-what { margin-top: clamp(var(--s-8), 8vw, var(--s-10)); padding-top: var(--s-7); border-top: 1px solid var(--border); }
+.sx-steps { list-style: none; margin: var(--s-5) 0 0; padding: 0; display: grid; gap: var(--s-4); max-width: 72ch; }
+.sx-steps li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--s-4); align-items: start; font-size: var(--fs-small); color: var(--ink-muted); line-height: 1.6; }
+.sx-steps b { color: var(--ink); font-weight: 600; }
+.sx-n { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--accent-border); background: var(--accent-soft); color: var(--accent); font-family: var(--font-mono); font-size: var(--fs-mono); flex: none; }
+.sx-note { margin: var(--s-6) 0 0; font-size: var(--fs-small); color: var(--ink-faint); max-width: 66ch; line-height: 1.6; }
+.sx-note a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+@media (max-width: 860px) { .sx-doors { grid-template-columns: 1fr; } }

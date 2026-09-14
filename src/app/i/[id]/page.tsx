@@ -42,7 +42,7 @@ export default async function IncidentPage({ params, searchParams }: { params: P
   return (
     <main className="in">
       <p className="in-crumb micro">
-        <Link href="/">warden</Link> / <Link href={`/s/${service.id}`}>{service.name}</Link> / incident
+        <Link href="/fleet">warden</Link> / <Link href={`/s/${service.id}`}>{service.name}</Link> / incident
       </p>
 
       <header className="in-head">

@@ -1,212 +1,331 @@
 import Link from "next/link";
-import { currentOwner } from "@/lib/auth/session";
-import { allServices, listIncidents, listProbes, listServices, openIncidents, pendingDecisions, policyOf, readingsFor } from "@/lib/db/warden";
+import { ArrowRight, Check, Eye, Hand, Lock, RotateCcw, Search, ShieldCheck } from "lucide-react";
+import { allServices, listIncidents, listProbes, openIncidents, policyOf, readingsFor } from "@/lib/db/warden";
 import { POSTURE_WORDS, posture } from "@/lib/ops/policy";
-import type { Service } from "@/lib/db/schema";
-import { BreakIt } from "@/components/break-it";
-import { breakableService } from "@/lib/demo-break";
+import { catalogue } from "@/lib/ops/operations";
 import { stanceOf } from "@/lib/ops/local";
-import { CheckNow } from "@/components/check-now";
-import { chipClass, statusChip } from "@/lib/incident-status";
-import "./home.css";
+import "./landing.css";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Warden — an autonomous operator for software that is already running",
+  description:
+    "Monitoring wakes you up. Warden does the next twenty minutes: it investigates the failure, fixes what your policy allows, proves the fix by re-running the check that failed, and wakes you only when the decision is genuinely yours.",
+  alternates: { canonical: "/" },
+};
+
 /**
- * THE CONSOLE. Every service Warden watches for you, and what it has done about them.
+ * THE FRONT DOOR.
  *
- * The default state of this page is the point of the product: a column of green, a row of quiet
- * nights, and nothing asking for you. It is designed to be boring, and to stop being boring in
- * exactly one way — an amber card at the top when Warden has stopped and needs an answer.
- *
- * Two fleets, and the distinction is load-bearing. YOURS is whatever you have registered, kept
- * behind a signed cookie. THE PUBLIC FLEET is the three services registered under the owner key
- * "demo", which anyone may watch and nobody but their owner may change — it is the live proof, and
- * it is the first thing a person sees before they have anything of their own.
+ * One arc, five scenes: what it is, what it does about it, the two boundaries it is built on,
+ * that it is real, and where to start. Every number here comes from the live fleet — the same
+ * rows the console renders — because a landing page for a product about honest evidence cannot
+ * open on a figure somebody typed.
  */
-export default async function Console() {
-  const owner = await currentOwner();
-  const mine = owner ? listServices(owner.key) : [];
+export default async function Landing() {
   const demo = allServices().filter((s) => s.ownerKey === "demo");
-  const visible = [...mine, ...demo];
-  const waiting = pendingDecisions().filter((d) => visible.some((s) => s.id === d.serviceId));
-  const open = openIncidents().filter((i) => visible.some((s) => s.id === i.serviceId));
-
-  const fleet = mine.length ? mine : demo;
-  const looks = fleet.reduce((n, s) => n + listProbes(s.id).reduce((m, p) => m + readingsFor(p.id, 200).length, 0), 0);
-  const all = fleet.flatMap((s) => listIncidents(s.id, 200));
-  const fixed = all.filter((i) => i.status === "resolved");
-  // Deliberately not an uptime percentage. The public fleet is broken on purpose several times a day
-  // to test the operator, so a "% clean" figure would say more about the testing than the software.
+  const incidents = demo.flatMap((s) => listIncidents(s.id, 200));
+  const fixed = incidents.filter((i) => i.status === "resolved");
+  const looks = demo.reduce((n, s) => n + listProbes(s.id).reduce((m, p) => m + readingsFor(p.id, 400).length, 0), 0);
   const medianDown = median(fixed.map((i) => i.downSeconds ?? 0).filter(Boolean));
-
-  // The one service an operator has set aside to be broken on purpose, if any. Offered only while
-  // the fleet is quiet: a visitor arriving mid-incident already has the interesting thing to watch.
-  const breakable = breakableService(process.env.WARDEN_DEMO_BREAKABLE, demo);
-  const canBreak = breakable && open.length === 0 && waiting.length === 0 && openIncidents(breakable.id).length === 0;
+  const ops = catalogue();
 
   return (
-    <main className="hm">
-      <header className="hm-hero">
-        <p className="hm-brand micro">Warden</p>
-        <h1 className="hm-h1">Your software should not need you awake to keep running.</h1>
-        <p className="hm-lede">
-          Warden watches the things you have running, investigates them when they break, fixes what your policy lets it fix, proves
-          the fix by re-running the check that failed — and wakes you only when the answer is genuinely yours to give.
-        </p>
-        <div className="hm-stats">
-          <Stat n={String(fleet.length)} of={mine.length ? "yours, watched" : "services watched"} />
-          <Stat n={looks.toLocaleString()} of="checks run" />
-          <Stat n={String(all.length)} of={`incident${all.length === 1 ? "" : "s"}`} />
-          <Stat n={String(fixed.length)} of={`closed without waking anyone${medianDown ? ` · median ${fmt(medianDown)} down` : ""}`} />
+    <div className="lx">
+      <nav className="lx-nav">
+        <div className="lx-nav-in">
+          <Link href="/" className="lx-brand">
+            <span className="lx-mark" aria-hidden />
+            Warden
+          </Link>
+          <div className="lx-links">
+            <a href="#how" className="lx-link">How it works</a>
+            <a href="#boundaries" className="lx-link">The boundaries</a>
+            <Link href="/fleet" className="lx-link">Watch it live</Link>
+            <a href="https://github.com/shariqazeem/warden" className="lx-link" rel="noreferrer">Source</a>
+          </div>
+          <Link href="/start" className="btn btn-sm">Start watching</Link>
         </div>
-        <div className="hm-do">
-          <Link href="/new" className="btn btn-accent">{mine.length ? "Watch something else" : "Watch something of yours"}</Link>
-          <CheckNow />
-        </div>
-      </header>
+      </nav>
 
-      {waiting.length > 0 ? (
-        <section className="hm-waiting" id="waiting">
-          {waiting.map((d) => {
-            const svc = visible.find((s) => s.id === d.serviceId);
-            return (
-              <Link key={d.id} href={d.incidentId ? `/i/${d.incidentId}` : "/"} className="hm-wait card">
-                <p className="micro hm-wait-k">Warden stopped · {svc?.name ?? "a service"}</p>
-                <p className="hm-wait-q">{d.question}</p>
-                {d.because ? <p className="hm-wait-w">{d.because}</p> : null}
-                <span className="hm-wait-go">Answer it →</span>
+      <main>
+        {/* ── 1. what it is ───────────────────────────────────────── */}
+        <section className="lx-hero">
+          <div className="lx-wrap lx-hero-in">
+            <div className="lx-hero-copy">
+              <span className="eyebrow lx-rise lx-rise-1">
+                <i aria-hidden />
+                Watching {demo.length} real services right now
+              </span>
+              <h1 className="display lx-rise lx-rise-2">
+                Your software should not need you awake
+                <br />
+                <span className="soft">to keep running.</span>
+              </h1>
+              <p className="lede lx-rise lx-rise-3">
+                Monitoring wakes you up. It does not read the log, look at what deployed at 02:14, or restart the process that is
+                simply stopped. Warden does those, inside a policy you wrote — and proves the fix by re-running the exact check
+                that failed.
+              </p>
+              <div className="lx-actions lx-rise lx-rise-4">
+                <Link href="/start" className="btn btn-accent btn-lg">
+                  Start watching something <ArrowRight size={17} strokeWidth={2.2} />
+                </Link>
+                <Link href="/fleet" className="btn btn-quiet btn-lg">Break it and watch</Link>
+              </div>
+              <div className="lx-hero-stat lx-rise lx-rise-4">
+                <Stat v={looks.toLocaleString()} k="checks run" />
+                <Stat v={String(incidents.length)} k={`incident${incidents.length === 1 ? "" : "s"}`} />
+                <Stat v={String(fixed.length)} k="closed without waking anyone" />
+                {medianDown ? <Stat v={fmt(medianDown)} k="median time down" /> : null}
+              </div>
+            </div>
+
+            <LiveBoard />
+          </div>
+        </section>
+
+        {/* ── 2. what it does about it ────────────────────────────── */}
+        <section className="lx-scene" id="how">
+          <div className="lx-wrap">
+            <div className="lx-head">
+              <span className="eyebrow"><i aria-hidden />The twenty minutes after the alert</span>
+              <h2 className="h2">The work is mechanical. That is why it is worth automating — and why it is frightening.</h2>
+              <p className="lede">
+                At 3am, from a phone, a person does the same four things in the same order. An agent with a shell on your
+                production box is a worse problem than the outage, so Warden has no shell: it picks one operation by name from a
+                fixed list of {ops.length}, the arguments are validated, and it is spawned without a shell.
+              </p>
+            </div>
+
+            <ol className="lx-steps">
+              <Step n="01" icon={<Search size={17} strokeWidth={2} />} title="It looks">
+                The process table, the logs, what landed recently, the diff of the one commit that looks relevant. Ten looks, and
+                an investigation that keeps reading is avoiding a conclusion.
+              </Step>
+              <Step n="02" icon={<Eye size={17} strokeWidth={2} />} title="It commits to a cause">
+                In plain words, quoting what it actually read, with a number for how sure it is. Under fifty per cent it does not
+                get to act at all.
+              </Step>
+              <Step n="03" icon={<Hand size={17} strokeWidth={2} />} title="Your policy decides">
+                Not the agent. A pure function reads the policy you wrote for that service and answers with the rule that decided:
+                do it, refuse it, or stop the run and ask you.
+              </Step>
+              <Step n="04" icon={<Check size={17} strokeWidth={2} />} title="The check decides whether it worked">
+                Warden re-runs the exact probe that failed. A clean reading closes the incident and its id is stored as the proof.
+                Warden never gets to say it fixed something.
+              </Step>
+            </ol>
+          </div>
+        </section>
+
+        {/* ── 3. the two boundaries ───────────────────────────────── */}
+        <section className="lx-scene" id="boundaries">
+          <div className="lx-wrap">
+            <div className="lx-head">
+              <span className="eyebrow"><i aria-hidden />What makes it safe to leave alone</span>
+              <h2 className="h2">Give it permission to act. Not permission to do anything.</h2>
+              <p className="lede">
+                Two boundaries, both in code, neither of which the model can move. Everything else about this product is downstream
+                of them.
+              </p>
+            </div>
+
+            <div className="lx-bounds">
+              <article className="lx-bound">
+                <h3 className="h3"><Lock size={18} strokeWidth={2} style={{ verticalAlign: "-3px", marginRight: 8, color: "var(--accent)" }} />The policy decides whether an act happens</h3>
+                <p>
+                  One per service, written by a human, operation by operation. <b>May</b> — it does it and tells you afterwards.
+                  <b> Ask</b> — it works out exactly what it would do, then stops the run and waits, however long that takes.
+                  <b> Never</b> — refused, with the rule that refused it named. Plus a cap per incident and a cooldown per service,
+                  because a granted permission is not an unbounded one.
+                </p>
+                <pre className="well">{`decide(op, policy, ctx) → { verdict, rule, reason }
+// pure. no clock, no model, no network.`}</pre>
+              </article>
+
+              <article className="lx-bound">
+                <h3 className="h3"><ShieldCheck size={18} strokeWidth={2} style={{ verticalAlign: "-3px", marginRight: 8, color: "var(--accent)" }} />The probe decides whether it worked</h3>
+                <p>
+                  An incident is closed by one thing and it is not the agent&rsquo;s opinion: the same check that opened it, run
+                  again, in code. The reading&rsquo;s id is stored on the incident. If it comes back failing, the incident says
+                  <i> &ldquo;Warden acted, but the check still fails&rdquo;</i> — and you are woken.
+                </p>
+                <pre className="well">{`resolveIncident(id, reading, resolution)
+// verifiedByReadingId — the proof, not a claim.`}</pre>
+              </article>
+            </div>
+
+            <div className="lx-policy">
+              {ops
+                .filter((o) => ["pm2_restart", "redeploy_previous", "tls_expiry", "delete_data", "destroy_infra"].includes(o.name))
+                .map((o) => (
+                  <div key={o.name} className={`lx-prow ${o.risk === "forbidden" ? "locked" : ""}`}>
+                    <span className="lx-pop">{o.name}</span>
+                    <span className="lx-pd">{o.does}</span>
+                    <span className={`chip ${o.risk === "forbidden" ? "is-down" : o.risk === "disruptive" ? "is-warn" : o.risk === "read" ? "is-unknown" : "is-accent"}`}>
+                      {o.risk === "forbidden" ? "never, under any policy" : o.risk}
+                    </span>
+                  </div>
+                ))}
+            </div>
+            <p className="lede" style={{ marginTop: "var(--s-4)", fontSize: "var(--fs-small)" }}>
+              Four of the {ops.length} are declared <b>forbidden</b> rather than left out — migrating a database, deleting data,
+              rotating a secret, destroying infrastructure — so the product can show you the line. No policy can turn them on.{" "}
+              <Link href="/fleet" style={{ color: "var(--accent)", textDecoration: "underline", textUnderlineOffset: 2 }}>See all {ops.length} against a real policy →</Link>
+            </p>
+          </div>
+        </section>
+
+        {/* ── 4. it is real ───────────────────────────────────────── */}
+        <section className="lx-scene">
+          <div className="lx-wrap">
+            <div className="lx-head">
+              <span className="eyebrow"><i aria-hidden />Not a recording</span>
+              <h2 className="h2">There is a button on the board that really stops a real service.</h2>
+              <p className="lede">
+                A working operator has a boring board, which is a genuine presentation problem, and the honest answer to it is a
+                real outage rather than a video. Press it and Warden&rsquo;s own checks notice, an incident opens, and you land on
+                it with the run already streaming.
+              </p>
+            </div>
+
+            <div className="lx-proof">
+              <div className="lx-pf"><span className="lx-pf-v">{fixed.length}</span><span className="lx-pf-k">incidents closed without waking anyone</span></div>
+              <div className="lx-pf"><span className="lx-pf-v">{medianDown ? fmt(medianDown) : "—"}</span><span className="lx-pf-k">median time a service was down</span></div>
+              <div className="lx-pf"><span className="lx-pf-v">{looks.toLocaleString()}</span><span className="lx-pf-k">checks written down, including the boring ones</span></div>
+              <div className="lx-pf"><span className="lx-pf-v">299</span><span className="lx-pf-k">tests, offline — no network, no model, no API key</span></div>
+            </div>
+
+            <blockquote className="lx-quote">
+              <p>
+                &ldquo;vigil is down because the process is stopped … the error log is empty and stdout shows only clean startup
+                banners. <b>So I cannot name the trigger of the stop from logs alone — it was silent.</b> … A restart is the right
+                next act; if it dies again immediately with no logged error, look at commits 6fad866 and 503accd — they bracket
+                when this started getting unhealthy.&rdquo;
+              </p>
+              <cite>a real diagnosis, from the audit table · the policy allowed a restart · the check came back 200 in 207ms · down 60s</cite>
+            </blockquote>
+          </div>
+        </section>
+
+        {/* ── 5. close ────────────────────────────────────────────── */}
+        <section className="lx-close">
+          <div className="lx-wrap">
+            <h2 className="display">A URL is the whole sign-up.</h2>
+            <p className="lede">
+              No account, no email, nothing to install. Give Warden something you have running and it starts checking. Tell it the
+              machine as well and it can read the logs, the process table and the last few commits when that URL stops answering —
+              and, if you let it, put the thing back up and prove it.
+            </p>
+            <div className="lx-actions">
+              <Link href="/start" className="btn btn-accent btn-lg">
+                Start watching something <ArrowRight size={17} strokeWidth={2.2} />
               </Link>
-            );
-          })}
+              <Link href="/fleet" className="btn btn-quiet btn-lg">
+                <RotateCcw size={16} strokeWidth={2} /> Watch it work first
+              </Link>
+            </div>
+          </div>
         </section>
-      ) : null}
+      </main>
 
-      {canBreak && breakable ? <BreakIt name={breakable.name} /> : null}
-
-      {mine.length ? (
-        <section className="hm-fleet">
-          <h2 className="hm-h2">Yours</h2>
-          {mine.map((s) => (
-            <ServiceCard key={s.id} service={s} />
-          ))}
-        </section>
-      ) : (
-        <section className="hm-start card">
-          <h2 className="hm-start-h">Nothing of yours yet.</h2>
-          <p className="hm-start-p">
-            Give Warden a URL and it starts checking. Give it the machine and the process as well and it can read the logs, the
-            process table and the last few commits when that URL stops answering — and, if you let it, put the thing back up and
-            prove it by asking the check again.
-          </p>
-          <p className="hm-start-p">
-            No account and no email: a signed cookie makes a service yours. Below is the fleet this Warden actually watches, live —
-            it is not a screenshot, and the incidents in it really happened.
-          </p>
-          <Link href="/new" className="btn btn-accent">Point it at something</Link>
-        </section>
-      )}
-
-      {demo.length ? (
-        <section className="hm-fleet">
-          <h2 className="hm-h2">
-            {mine.length ? "The public fleet" : "Watching, right now"}
-            <span className="hm-h2-n">anyone can watch these · nobody but their owner can change them</span>
-          </h2>
-          {demo.map((s) => (
-            <ServiceCard key={s.id} service={s} />
-          ))}
-        </section>
-      ) : null}
-
-      <footer className="hm-foot">
-        <p>
-          Warden has no shell. It can only invoke named operations from a fixed catalogue, and a per-service policy decides whether
-          each one happens, is refused, or stops the run and asks you. Every call it makes is on the incident page with the exact
-          command and the rule that permitted it.
-        </p>
-        <p className="mono">
-          <a href="https://github.com/shariqazeem/warden" rel="noreferrer">source</a> · MIT · built on the Strands Agents SDK
-        </p>
+      <footer className="lx-foot">
+        <div className="lx-wrap lx-foot-in">
+          <div>
+            <Link href="/" className="lx-brand"><span className="lx-mark" aria-hidden />Warden</Link>
+            <p className="lx-foot-tag">
+              An autonomous operator for software that is already running. It has no shell, its policy is code, and it proves every
+              fix with the check that failed.
+            </p>
+          </div>
+          <nav className="lx-fc"><h4>Product</h4>
+            <Link href="/start">Start watching</Link>
+            <Link href="/fleet">The live fleet</Link>
+            <Link href="/activity">Everything it has run</Link>
+            <Link href="/settings">Where it reaches you</Link>
+          </nav>
+          <nav className="lx-fc"><h4>How it works</h4>
+            <a href="#how">The four steps</a>
+            <a href="#boundaries">The two boundaries</a>
+            <a href="https://github.com/shariqazeem/warden#the-console" rel="noreferrer">The console</a>
+            <a href="https://github.com/shariqazeem/warden#what-is-honest-about-this" rel="noreferrer">What is honest about this</a>
+          </nav>
+          <nav className="lx-fc"><h4>Source</h4>
+            <a href="https://github.com/shariqazeem/warden" rel="noreferrer">GitHub</a>
+            <a href="https://github.com/shariqazeem/warden/blob/main/docs/architecture.png" rel="noreferrer">Architecture</a>
+            <a href="https://github.com/strands-agents" rel="noreferrer">Strands Agents SDK</a>
+          </nav>
+        </div>
+        <div className="lx-foot-base">
+          <span>MIT</span>
+          <span>·</span>
+          <span>Built on the Strands Agents SDK</span>
+          <span>·</span>
+          <a href="https://github.com/shariqazeem/warden" rel="noreferrer">github.com/shariqazeem/warden</a>
+        </div>
       </footer>
-    </main>
-  );
-}
-
-function Stat({ n, of }: { n: string; of: string }) {
-  return (
-    <div className="hm-stat">
-      <span className="hm-stat-n">{n}</span>
-      <span className="hm-stat-o">{of}</span>
     </div>
   );
 }
 
-function ServiceCard({ service }: { service: Service }) {
-  const probes = listProbes(service.id);
-  const open = openIncidents(service.id);
-  const policy = policyOf(service);
-  const history = listIncidents(service.id, 60);
-  const stance = stanceOf(service, POSTURE_WORDS[posture(policy)]);
-  const paused = service.state === "paused";
-
-  const state = paused ? "unknown" : open.length ? "down" : probes.length ? "ok" : "unknown";
-
+function Stat({ v, k }: { v: string; k: string }) {
   return (
-    <article className={`sv card is-${state}`}>
-      <header className="sv-head">
-        <div>
-          <h3 className="sv-name"><Link href={`/s/${service.id}`}>{service.name}</Link></h3>
-          {service.matters ? <p className="sv-matters">{service.matters}</p> : null}
-        </div>
-        <span className={`chip ${state === "ok" ? "is-ok" : state === "down" ? "is-down" : "is-unknown"}`}>
-          {paused ? "paused" : state === "ok" ? "up" : state === "down" ? `${open.length} open` : "no checks"}
-        </span>
-      </header>
+    <div className="lx-hs">
+      <span className="lx-hs-v">{v}</span>
+      <span className="lx-hs-k">{k}</span>
+    </div>
+  );
+}
 
-      <ul className="sv-probes">
-        {probes.map((p) => {
-          const rs = readingsFor(p.id, 60);
-          const last = rs[0];
+function Step({ n, icon, title, children }: { n: string; icon: React.ReactNode; title: string; children: React.ReactNode }) {
+  return (
+    <li className="lx-step">
+      <span className="lx-step-n">{n}</span>
+      <h3>
+        <span style={{ color: "var(--accent)", marginRight: 8, verticalAlign: "-3px", display: "inline-block" }}>{icon}</span>
+        {title}
+      </h3>
+      <p>{children}</p>
+    </li>
+  );
+}
+
+/** The real fleet, drawn small. Same rows the console renders — nothing here is invented. */
+function LiveBoard() {
+  const demo = allServices().filter((s) => s.ownerKey === "demo");
+  return (
+    <div className="lx-board lx-rise lx-rise-3">
+      <div className="lx-board-bar">
+        <span className="lx-dots" aria-hidden><i /><i /><i /></span>
+        <span className="lx-board-t">warden.80.225.209.190.sslip.io — live</span>
+      </div>
+      <div className="lx-board-body">
+        {demo.map((s) => {
+          const probes = listProbes(s.id);
+          const open = openIncidents(s.id).length;
+          const stance = stanceOf(s, POSTURE_WORDS[posture(policyOf(s))]);
+          const last = probes[0] ? readingsFor(probes[0].id, 1)[0] : null;
+          const hist = probes[0] ? readingsFor(probes[0].id, 26) : [];
           return (
-            <li key={p.id} className="sv-probe">
-              <span className={`sv-led ${last ? (last.ok ? "is-ok" : "is-down") : "is-unknown"}`} aria-hidden="true" />
-              <span className="sv-probe-l">{p.label}</span>
-              {/* one mark per look, newest on the right. Mostly green is what a watch looks like. */}
-              <span className="sv-spark" aria-hidden="true">
-                {rs
-                  .slice(0, 40)
-                  .reverse()
-                  .map((r) => (
-                    <i key={r.id} className={r.ok ? "is-ok" : "is-down"} title={`${new Date(r.at).toISOString().slice(11, 16)} · ${r.detail}`} />
-                  ))}
-              </span>
-              <span className="sv-probe-d mono">{last ? last.detail.slice(0, 40) : "never looked"}</span>
-            </li>
+            <div key={s.id} className="lx-svc">
+              <div className="lx-svc-h">
+                <span className={`chip ${open ? "is-down" : "is-ok"}`}>{open ? `${open} open` : "up"}</span>
+                <span className="lx-svc-n">{s.name}</span>
+                <span className={`chip is-${stance.tone} lx-svc-p`}>{stance.label}</span>
+              </div>
+              <div className="lx-svc-h">
+                <span className="lx-spark" aria-hidden>
+                  {hist.slice().reverse().map((r) => <i key={r.id} className={r.ok ? "" : "bad"} />)}
+                </span>
+                <span className="lx-svc-d">{last?.detail ?? "never looked"}</span>
+              </div>
+            </div>
           );
         })}
-        {probes.length === 0 ? <li className="sv-probe sv-none">No checks yet — nothing can be said about this one honestly.</li> : null}
-      </ul>
-
-      <footer className="sv-foot">
-        <span className={`chip is-${stance.tone}`}>{stance.label}</span>
-        <span className="sv-policy">{policy.note}</span>
-      </footer>
-
-      {history.length ? (
-        <ul className="sv-incidents">
-          {history.slice(0, 4).map((i) => (
-            <li key={i.id}>
-              <Link href={`/i/${i.id}`}>
-                <span className={chipClass(i.status)}>{statusChip(i.status).label}</span>
-                <span className="sv-inc-t">{i.title.replace(`${service.name}: `, "")}</span>
-                {i.downSeconds !== null ? <span className="mono sv-inc-d">{fmt(i.downSeconds)}</span> : null}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </article>
+      </div>
+    </div>
   );
 }
 

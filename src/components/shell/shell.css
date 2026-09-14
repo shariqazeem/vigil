@@ -1,0 +1,115 @@
+/**
+ * The app shell — fixed chrome, on the product's own tokens.
+ *
+ * The rail floats rather than taking a column, because the incident timeline is the thing people
+ * actually watch and it should not be narrowed to make room for navigation nobody is looking at.
+ */
+
+/* Room for the fixed rail, and only while there is one. */
+html[data-rail="on"] body { padding-left: 76px; }
+html[data-rail="on"] .hm,
+html[data-rail="on"] .sp,
+html[data-rail="on"] .in,
+html[data-rail="on"] .ac,
+html[data-rail="on"] .st,
+html[data-rail="on"] .nw { padding-top: var(--s-6); }
+
+.rail {
+  position: fixed;
+  left: 14px;
+  top: 14px;
+  bottom: 14px;
+  z-index: 60;
+  width: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: width var(--dur-2) var(--ease-spring), box-shadow var(--dur-2) var(--ease-out);
+}
+.rail:hover, .rail:focus-within { width: 224px; box-shadow: var(--shadow-float); }
+
+.rail-brand { display: flex; align-items: center; gap: 12px; padding: 6px 7px var(--s-4); white-space: nowrap; }
+.rail-mark { width: 16px; height: 16px; border-radius: 5px; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); flex: none; transition: transform var(--dur-2) var(--ease-spring); }
+.rail-brand:hover .rail-mark { transform: rotate(45deg); }
+.rail-word { font-weight: 600; letter-spacing: -0.02em; opacity: 0; transition: opacity var(--dur-2) var(--ease-out); }
+.rail:hover .rail-word, .rail:focus-within .rail-word { opacity: 1; }
+
+.rail-items { display: grid; gap: 2px; }
+.rail-item {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 7px;
+  border-radius: var(--r-md);
+  color: var(--ink-muted);
+  white-space: nowrap;
+  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+}
+.rail-item:hover { background: var(--bg-sunk); color: var(--ink); }
+.rail-item.on { background: var(--accent-soft); color: var(--accent); }
+.rail-ico { display: grid; place-items: center; width: 22px; flex: none; }
+.rail-label { font-size: var(--fs-small); font-weight: 500; opacity: 0; transition: opacity var(--dur-2) var(--ease-out); }
+.rail:hover .rail-label, .rail:focus-within .rail-label { opacity: 1; }
+.rail-count {
+  margin-left: auto;
+  display: grid; place-items: center;
+  min-width: 19px; height: 19px; padding: 0 5px;
+  border-radius: var(--r-pill);
+  background: var(--warn); color: #fff;
+  font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;
+  opacity: 0; transition: opacity var(--dur-2) var(--ease-out);
+  animation: pulse 2.4s var(--ease-out) infinite;
+}
+.rail:hover .rail-count, .rail:focus-within .rail-count { opacity: 1; }
+/* collapsed, the count becomes a dot on the icon — the number is not readable at 56px anyway */
+.rail:not(:hover):not(:focus-within) .rail-item:has(.rail-count) .rail-ico::after {
+  content: ""; position: absolute; top: 7px; right: 9px;
+  width: 7px; height: 7px; border-radius: 50%; background: var(--warn);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.rail-add { margin-top: auto; color: var(--ink); }
+.rail-add .rail-ico { color: var(--accent); }
+
+/* ── the phone's bottom bar ───────────────────────────────────────── */
+.railm { display: none; }
+
+@media (max-width: 860px) {
+  html[data-rail="on"] body { padding-left: 0; padding-bottom: 76px; }
+  .rail { display: none; }
+  .railm {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    padding: 8px max(8px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: saturate(180%) blur(18px);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+  }
+  .railm-item { position: relative; display: grid; justify-items: center; gap: 3px; padding: 6px 2px; border-radius: var(--r-md); color: var(--ink-faint); font-size: 10.5px; }
+  .railm-item.on { color: var(--accent); }
+  .railm-dot { position: absolute; top: 4px; right: 22%; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+}
+
+/* ── the one interruption ─────────────────────────────────────────── */
+
+.rail-alert {
+  display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap;
+  margin-bottom: var(--s-5);
+  padding: var(--s-3) var(--s-5);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--r-pill);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: var(--fs-small);
+  font-weight: 550;
+  transition: transform var(--dur-1) var(--ease-spring), box-shadow var(--dur-1) var(--ease-out);
+}
+.rail-alert:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+.rail-alert-go { margin-left: auto; }

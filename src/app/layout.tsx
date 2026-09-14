@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Nav } from "@/components/nav";
+import { Rail } from "@/components/shell/rail";
+import { pendingDecisions } from "@/lib/db/warden";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "../styles/tokens.css";
@@ -26,11 +27,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The one number that should ever interrupt somebody, resolved once for every screen.
+  const waiting = pendingDecisions().length;
   return (
     <html lang="en" className={`${inter.variable} ${mono.variable}`}>
       <body>
-        <Nav />
+        <Rail waiting={waiting} />
         {children}
       </body>
     </html>

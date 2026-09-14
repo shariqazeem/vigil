@@ -66,7 +66,7 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
   return (
     <main className="sp">
       <p className="in-crumb micro">
-        <Link href="/">warden</Link> / service
+        <Link href="/fleet">warden</Link> / service
       </p>
 
       {welcome ? (

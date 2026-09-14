@@ -26,7 +26,7 @@ export default async function SettingsPage() {
   return (
     <main className="st">
       <p className="in-crumb micro">
-        <Link href="/">warden</Link> / where to reach you
+        <Link href="/fleet">warden</Link> / where to reach you
       </p>
 
       <header className="st-head">

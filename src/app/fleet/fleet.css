@@ -149,3 +149,11 @@
 .bk-lines li { font-size: var(--fs-mono); color: var(--ink-muted); animation: cn-in var(--dur-2) var(--ease-out); }
 .bk-err { margin: var(--s-3) 0 0; font-size: var(--fs-small); color: var(--down); }
 @keyframes nw-open { from { opacity: 0; transform: translate3d(0, -6px, 0); } to { opacity: 1; transform: none; } }
+
+/* ── the dashboard header ─────────────────────────────────────────────
+   The fleet page wore the landing's hero for a while, which meant the working surface opened on a
+   marketing headline somebody had already read on the way in. A dashboard says where you are. */
+.hm-top { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-5); flex-wrap: wrap; }
+.hm-h1 { font-size: clamp(1.7rem, 3vw, 2.3rem); line-height: 1.1; letter-spacing: -0.03em; max-width: 24ch; margin: 0; }
+.hm-hero .hm-lede { margin-top: var(--s-4); font-size: var(--fs-body); max-width: 68ch; }
+.hm-hero .hm-do { margin-top: 0; }

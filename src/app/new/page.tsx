@@ -29,7 +29,7 @@ export default async function NewServicePage() {
   return (
     <main className="nw">
       <p className="in-crumb micro">
-        <Link href="/">warden</Link> / watch something
+        <Link href="/fleet">warden</Link> / watch something
       </p>
 
       <header className="nw-head">

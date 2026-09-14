@@ -10,6 +10,8 @@ import { cookies } from "next/headers";
 export interface Owner {
   key: string;
   kind: "anon";
+  /** what to call them, when they have said. Never required — naming yourself is not signing up. */
+  name?: string;
 }
 
 const COOKIE = "warden_owner";
@@ -35,7 +37,8 @@ export function decodeOwner(raw: string | undefined): Owner | null {
   if (sig.length !== expect.length || !timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
   try {
     const o = JSON.parse(unb64(payload)) as Owner;
-    return typeof o.key === "string" && o.kind === "anon" ? o : null;
+    if (typeof o.key !== "string" || o.kind !== "anon") return null;
+    return { key: o.key, kind: "anon", ...(typeof o.name === "string" && o.name ? { name: o.name.slice(0, 40) } : {}) };
   } catch {
     return null;
   }
@@ -50,6 +53,22 @@ export async function currentOwner(): Promise<Owner | null> {
 export function anonymousOwner(): Owner {
   return { key: `anon:${randomBytes(12).toString("base64url")}`, kind: "anon" };
 }
+
+/**
+ * THE RECOVERY KEY, which is the cookie written down.
+ *
+ * There is no account here and there is no password to lose, which is a good trade until the day
+ * somebody clears their cookies or opens the product on a second machine — at which point their
+ * services are simply unreachable, with nothing to do about it. That was a documented limitation
+ * for longer than it should have been.
+ *
+ * The cookie's value is already an HMAC-signed statement of who someone is. So the recovery key is
+ * that exact string: hand it back and they are themselves again, on any device. It grants
+ * everything their cookie grants, which is why the UI treats it as a secret and why it is shown
+ * once, on the screen where it is created, rather than emailed anywhere.
+ */
+export const recoveryKey = (o: Owner): string => encodeOwner(o);
+export const fromRecoveryKey = (key: string): Owner | null => decodeOwner(key.trim());
 
 /** Cookie attributes for a Set-Cookie on a Response. Route handlers use this; pages cannot set cookies. */
 export function ownerCookie(o: Owner): { name: string; value: string; httpOnly: true; sameSite: "lax"; secure: boolean; path: "/"; maxAge: number } {
