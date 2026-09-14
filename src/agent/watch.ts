@@ -122,9 +122,13 @@ You will be told about exactly one government record that could not be settled w
 one thing. Call rule_on_candidate with that thingId and sourceId, verdict "unsure", and the question in
 "missing". Nothing else. Do not explain, do not summarise, do not answer in prose.
 
-The question must be one short sentence a tired person can answer while standing in the room, and it must
-quote the record's own words about where to look — the label under the top panel, the model number on the
-back, the date code. Never ask them to know something the record does not tell them how to find.`;
+The question is answered by tapping one of three buttons: YES, NO, or "I can't tell". So it must be a
+yes/no question — never an open one. Not "what is the date on the label?" but "Is the date on the label
+under the top panel between 09/2023 and 12/2025?".
+
+One short sentence a tired person can answer while standing in the room, and it must quote the record's own
+words about where to look — the label under the top panel, the model number on the back, the date code.
+Never ask them to know something the record does not tell them how to find.`;
 
 const BRIEF_PROMPT = `You are Vigil, telling the owner what this pass found.
 
@@ -214,8 +218,8 @@ function buildGraph(passId: string, householdId: string): Graph {
     ],
     maxConcurrency: 3,
     maxSteps: 24,
-    timeout: 900_000,
-    nodeTimeout: 300_000,
+    timeout: 1_500_000,
+    nodeTimeout: 420_000,
     traceAttributes: { "vigil.pass_id": passId, "vigil.household_id": householdId },
   });
 }
@@ -463,21 +467,30 @@ export async function runPass(householdId: string, trigger: string, emit: (e: Pa
     if (things.length === 0) {
       summary = "Nothing to watch yet.";
     } else {
-      const graph = buildGraph(pass.id, householdId);
-      graph.addHook(BeforeNodeCallEvent, (e) => {
-        send({ kind: "node.start", node: e.nodeId, label: NODE_LABEL[e.nodeId] ?? e.nodeId });
-      });
+      // The graph is the agent's own run, and it can fail: a node can time out, a provider can have
+      // a bad ten minutes. That must not take the safety net down with it — the gates below are
+      // exactly what a half-finished watch needs, so a graph failure is reported and stepped over.
+      try {
+        const graph = buildGraph(pass.id, householdId);
+        graph.addHook(BeforeNodeCallEvent, (e) => {
+          send({ kind: "node.start", node: e.nodeId, label: NODE_LABEL[e.nodeId] ?? e.nodeId });
+        });
 
-      const brief = things.map((t) => `${t.label} — ${[t.year, t.make, t.model].filter(Boolean).join(" ") || t.kind}`).join("\n");
-      const stream = graph.stream(`This household is watching:\n${brief}\n\nRun the pass.`, {
-        invocationState: { passId: pass.id, householdId },
-      }) as AsyncGenerator<MultiAgentStreamEvent>;
-      for await (const ev of stream) {
-        if (ev instanceof NodeResultEvent) {
-          send({ kind: "node.done", node: ev.nodeId, ms: ev.result.duration ?? 0, status: String(ev.result.status) });
-          const said = ev.result.content?.map((b) => (b.type === "textBlock" ? b.text : "")).join("").trim();
-          if (said) send({ kind: "thinking", node: ev.nodeId, text: said.slice(0, 600) });
+        const brief = things.map((t) => `${t.label} — ${[t.year, t.make, t.model].filter(Boolean).join(" ") || t.kind}`).join("\n");
+        const stream = graph.stream(`This household is watching:\n${brief}\n\nRun the pass.`, {
+          invocationState: { passId: pass.id, householdId },
+        }) as AsyncGenerator<MultiAgentStreamEvent>;
+        for await (const ev of stream) {
+          if (ev instanceof NodeResultEvent) {
+            send({ kind: "node.done", node: ev.nodeId, ms: ev.result.duration ?? 0, status: String(ev.result.status) });
+            const said = ev.result.content?.map((b) => (b.type === "textBlock" ? b.text : "")).join("").trim();
+            if (said) send({ kind: "thinking", node: ev.nodeId, text: said.slice(0, 600) });
+          }
         }
+      } catch (e) {
+        const why = e instanceof Error ? e.message : String(e);
+        send({ kind: "error", message: `The agent's own run did not finish (${why.slice(0, 140)}). Vigil is asking the rest itself.` });
+        logEvent(householdId, "system", "graph.failed", why, pass.id);
       }
 
       const unchecked = await closeTheGaps(ctx, send);

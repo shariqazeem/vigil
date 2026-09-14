@@ -45,6 +45,7 @@ export default async function Board({ params }: { params: Promise<{ id: string }
     secondHand: t.secondHand,
     lastCheckedAt: lastChecked[t.id] ?? null,
     findings: findings.filter((f) => f.thingId === t.id && f.state !== "dismissed").map((f) => ({ sourceId: f.sourceId, severity: f.severity })),
+    asking: decisions.some((d) => !d.answeredAt && d.thingId === t.id),
   }));
 
   const finished = passes.filter((p) => p.finishedAt);

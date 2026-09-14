@@ -46,11 +46,11 @@
 
 .fld-lamp {
   position: absolute;
-  width: 340px;
-  height: 340px;
-  margin: -170px 0 0 -170px;
+  width: 400px;
+  height: 400px;
+  margin: -200px 0 0 -200px;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--lamp-glow) 0%, rgba(255, 199, 107, 0.06) 42%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 199, 107, 0.3) 0%, rgba(255, 199, 107, 0.11) 34%, rgba(255, 199, 107, 0.03) 56%, transparent 72%);
   transition: left var(--dur-4) var(--ease), top var(--dur-4) var(--ease), opacity var(--dur-3) var(--ease);
   pointer-events: none;
   z-index: 1;
@@ -87,6 +87,7 @@
 
 .fld-glyph {
   position: relative;
+  will-change: transform;
   z-index: 1;
   display: grid;
   place-items: center;
@@ -96,7 +97,7 @@
   background: rgba(10, 16, 28, 0.82);
   border: 1px solid var(--line);
   color: var(--ink-2);
-  transition: color var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease), box-shadow var(--dur-3) var(--ease), background var(--dur-2) var(--ease);
+  transition: color var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease), box-shadow var(--dur-3) var(--ease), background var(--dur-2) var(--ease), transform var(--dur-2) var(--ease-spring);
 }
 
 .fld-ring {
@@ -128,7 +129,23 @@
 @keyframes fld-turn { to { transform: rotate(360deg); transform-origin: 50% 50%; } }
 
 .fld-node.is-clear .fld-glyph { color: var(--clear); border-color: var(--clear-dim); }
-.fld-node.is-clear .fld-ring-live { stroke: var(--clear-dim); stroke-dasharray: 276; }
+/* the ring draws itself once, when that thing's answer actually lands */
+.fld-node.is-clear .fld-ring-live {
+  stroke: var(--clear-dim);
+  stroke-dasharray: 276;
+  animation: fld-sweep 900ms var(--ease) both;
+}
+@keyframes fld-sweep { from { stroke-dashoffset: 276; } to { stroke-dashoffset: 0; } }
+
+/* where the agent is right now: lifted out of the field, whatever its state */
+.fld-node.is-at { z-index: 3; }
+.fld-node.is-at .fld-glyph { transform: scale(1.08); }
+.fld-node.is-at .fld-label { color: var(--ink); }
+
+.fld-node.is-asking { color: var(--lamp); }
+.fld-node.is-asking .fld-glyph { color: var(--lamp); border-color: var(--lamp-dim); border-style: dashed; }
+.fld-node.is-asking .fld-ring-live { stroke: var(--lamp-dim); stroke-dasharray: 6 10; }
+.fld-status .is-asking { color: var(--lamp); }
 
 .fld-node.is-alarm { color: var(--alarm); }
 .fld-node.is-alarm .fld-glyph {
@@ -264,6 +281,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .fld-node.is-looking .fld-ring-live,
+  .fld-node.is-clear .fld-ring-live,
   .fld-node[data-severity="critical"] .fld-glyph { animation: none; }
   .fld-stamp, .fld-halt, .fld-ticker p { animation: none; }
 }

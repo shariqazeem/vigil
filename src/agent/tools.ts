@@ -510,8 +510,8 @@ export function ruleOnCandidateTool(canInterrupt: boolean) {
               question,
               context: `${cand.title}\n\n${cand.summary}`.slice(0, 1200),
               options: [
-                { value: "yes", label: "Yes — it matches", tone: "danger" },
-                { value: "no", label: "No — it doesn't", tone: "quiet" },
+                { value: "yes", label: "Yes", tone: "danger" },
+                { value: "no", label: "No", tone: "quiet" },
                 { value: "unknown", label: "I can't tell", tone: "quiet" },
               ],
             });

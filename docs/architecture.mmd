@@ -1,0 +1,69 @@
+%% Vigil — how one watch actually runs.
+%% Dotted arrows are CONDITIONAL EDGES: the Strands Graph evaluates the handler at run time and the
+%% node only fires if it returns true. Thick arrows are the interrupt: the run genuinely stops there.
+%% Render: node scripts/render-diagram.mjs
+flowchart LR
+
+  DROP["A sentence, a photo of a shelf,<br/>or a VIN typed on a phone"]:::drop
+
+  INTAKE["<b>intake</b> · Strands Agent<br/>structuredOutputSchema<br/>must declare what it could NOT read<br/><i>a VIN goes to NHTSA vPIC, not the model</i>"]:::agent
+
+  DROP --> INTAKE --> DB
+
+  subgraph PASS["ONE PASS — a Strands Graph"]
+    direction LR
+    TRIAGE["<b>triage</b><br/>which agency could<br/>possibly know about<br/>each thing"]:::agent
+    VEH["<b>vehicle_watch</b>"]:::agent
+    PRD["<b>product_watch</b>"]:::agent
+    ING["<b>ingestible_watch</b>"]:::agent
+    MATCH["<b>match</b><br/>covers / clear / unsure<br/>one verdict per record"]:::agent
+    TRIAGE -. "planned a vehicle" .-> VEH
+    TRIAGE -. "planned a product" .-> PRD
+    TRIAGE -. "planned an ingestible" .-> ING
+    VEH -. "something came back" .-> MATCH
+    PRD -. "something came back" .-> MATCH
+    ING -. "something came back" .-> MATCH
+  end
+
+  DB --> TRIAGE
+
+  GUARD{{"<b>six refusals on the tool boundary</b><br/>BeforeToolCallEvent hook +<br/>NothingLeavesTheHouse intervention<br/><i>no invented records · no alarm on a hunch ·<br/>no clearing a brand match · no unchecked window ·<br/>severity must be evidenced · one verdict per record</i>"}}:::gate
+
+  SRC[("<b>NHTSA</b> recalls + complaints<br/><b>CPSC</b> product recalls<br/><b>openFDA</b> enforcement<br/><i>every call records a check<br/>before the agent sees a row</i>")]:::src
+
+  VEH --> GUARD
+  PRD --> GUARD
+  ING --> GUARD
+  MATCH --> GUARD
+  GUARD --> SRC
+  SRC --> DB
+
+  GATES["<b>the completeness gates</b> · plain code<br/>closeTheGaps — asks any source triage<br/>promised and the lanes never asked<br/>closeTheVerdicts — re-sends any record<br/>fetched but never ruled on<br/><i>the agent chooses how to look;<br/>the code guarantees that it looked</i>"]:::code
+
+  MATCH --> GATES
+
+  ADJ["<b>adjudicator</b> · one agent, one tool<br/>AfterInvocationEvent.resume makes it<br/>impossible to end a turn without asking"]:::agent
+  GATES --> ADJ
+
+  HUMAN(["<b>the person whose house it is</b><br/>answers one yes/no question"]):::human
+  ADJ ==> |"context.interrupt()<br/><b>stopReason: interrupt</b>"| HUMAN
+  HUMAN ==> |"InterruptResponseContent<br/>hours later, another process"| ADJ
+  FREEZE[("passes.context — the run's own state, frozen")]:::code
+  ADJ -.-> FREEZE
+  FREEZE -.-> ADJ
+
+  BRIEF["<b>brief</b> · two sentences,<br/>only about findings that exist"]:::agent
+  ADJ --> BRIEF --> DB
+
+  DB[("<b>SQLite ledger</b><br/>things · passes · checks<br/>findings · decisions<br/>standing rules · events")]:::store
+
+  BOARD["<b>the board</b> · SSE, live<br/>every frame is a fold of real events<br/>a replay is always labelled a replay"]:::store
+  DB --> BOARD
+
+  classDef agent fill:#eef2ff,stroke:#4353a8,stroke-width:1.5px,color:#0f172a;
+  classDef code fill:#f6f7fb,stroke:#64748b,stroke-width:1.5px,color:#0f172a;
+  classDef gate fill:#fff6e8,stroke:#b45309,stroke-width:2px,color:#0f172a;
+  classDef store fill:#f0fdf4,stroke:#15803d,stroke-width:1.5px,color:#0f172a;
+  classDef src fill:#ecfeff,stroke:#0e7490,stroke-width:1.5px,color:#0f172a;
+  classDef human fill:#fee2e2,stroke:#b91c1c,stroke-width:2.5px,color:#0f172a;
+  classDef drop fill:#fffbeb,stroke:#a16207,stroke-width:1.5px,color:#0f172a;

@@ -30,12 +30,18 @@ export interface FieldThing {
   secondHand: boolean;
   lastCheckedAt: number | null;
   findings: { sourceId: string; severity: string }[];
+  /** true when a question about this thing is open and unanswered — it is not clear, it is pending */
+  asking: boolean;
 }
 
 type NodeState = "quiet" | "looking" | "clear" | "alarm" | "asking";
 
 interface Live {
   checking: Record<string, { source: string; endpoint: string }>;
+  /** the last thing the agent touched, by any real event — where the lamp is */
+  at: string | null;
+  /** bumped on every completed check, so a node can sweep once when its answer lands */
+  pulse: Record<string, number>;
   rows: Record<string, number>;
   sources: Record<string, number>;
   failed: Record<string, string>;
@@ -43,7 +49,7 @@ interface Live {
   asking: string | null;
 }
 
-const EMPTY: Live = { checking: {}, rows: {}, sources: {}, failed: {}, found: {}, asking: null };
+const EMPTY: Live = { checking: {}, rows: {}, sources: {}, failed: {}, found: {}, asking: null, at: null, pulse: {} };
 
 /** Deterministic: the same household always draws the same constellation. */
 function hash(s: string): number {
@@ -89,10 +95,16 @@ export function Field({
   // Fold the event stream into what the field shows. Replaying the same events always produces the
   // same picture — the board after a reload is the board you were watching.
   const live = useMemo(() => {
-    const s: Live = { ...EMPTY, checking: {}, rows: {}, sources: {}, failed: {}, found: {} };
+    const s: Live = { ...EMPTY, checking: {}, rows: {}, sources: {}, failed: {}, found: {}, pulse: {} };
     for (const e of events) {
-      if (e.kind === "check.start") s.checking[e.thingId] = { source: e.source, endpoint: e.endpoint };
+      if (e.kind === "check.start") {
+        s.checking[e.thingId] = { source: e.source, endpoint: e.endpoint };
+        s.at = e.thingId;
+      }
+      if (e.kind === "match" || e.kind === "cluster" || e.kind === "finding") s.at = e.thingId;
       if (e.kind === "check.done") {
+        s.at = e.thingId;
+        s.pulse[e.thingId] = (s.pulse[e.thingId] ?? 0) + 1;
         delete s.checking[e.thingId];
         s.rows[e.thingId] = (s.rows[e.thingId] ?? 0) + e.rows;
         s.sources[e.thingId] = (s.sources[e.thingId] ?? 0) + 1;
@@ -118,14 +130,19 @@ export function Field({
     if (next.length) setTicker((t) => [...t, ...next].slice(-40));
   }, [events]);
 
-  const active = Object.keys(live.checking)[0] ?? null;
-  const lantern = active ? pos[active] : null;
+  // The lamp sits on whatever the agent last touched, and goes out when the pass ends. A cached
+  // federal read can come back in 27ms, so gating the light on "a request is open right now" would
+  // mean it was almost never lit — while the thing it is actually reporting, where the agent's
+  // attention is, stays true for as long as the agent is there.
+  const lantern = phase === "running" && live.at ? pos[live.at] : null;
   const frozen = phase === "halted";
 
   const stateOf = (t: FieldThing): NodeState => {
     if (live.checking[t.id]) return "looking";
     if ((live.found[t.id]?.length ?? 0) > 0 || t.findings.length > 0) return "alarm";
-    if (frozen && live.asking) return "asking";
+    // A thing Vigil has asked about and not heard back on is NOT clear. Green here would be the
+    // product telling you something it does not know.
+    if (t.asking) return "asking";
     if ((live.sources[t.id] ?? 0) > 0) return "clear";
     return t.lastCheckedAt ? "clear" : "quiet";
   };
@@ -157,9 +174,14 @@ export function Field({
           const found = [...(live.found[t.id] ?? []), ...t.findings];
           const worst = found.some((f) => f.severity === "critical") ? "critical" : found[0]?.severity;
           return (
-            <li key={t.id} className={`fld-node is-${st}`} style={{ left: `${p.x}%`, top: `${p.y}%` }} data-severity={worst ?? ""}>
+            <li
+              key={t.id}
+              className={`fld-node is-${st} ${live.at === t.id && phase === "running" ? "is-at" : ""}`}
+              style={{ left: `${p.x}%`, top: `${p.y}%` }}
+              data-severity={worst ?? ""}
+            >
               <div className="fld-mark">
-                <svg className="fld-ring" viewBox="0 0 100 100" aria-hidden="true">
+                <svg className="fld-ring" viewBox="0 0 100 100" aria-hidden="true" key={`ring-${live.pulse[t.id] ?? 0}`}>
                   <circle className="fld-ring-track" cx="50" cy="50" r="44" />
                   <circle className="fld-ring-live" cx="50" cy="50" r="44" />
                 </svg>
@@ -179,6 +201,8 @@ export function Field({
               <p className="fld-status mono">
                 {checking ? (
                   <span className="is-looking">asking {checking.source}…</span>
+                ) : st === "asking" ? (
+                  <span className="is-asking">waiting on your answer</span>
                 ) : live.failed[t.id] ? (
                   <span className="is-unknown">unchecked — {live.failed[t.id]}</span>
                 ) : found.length > 0 ? (
