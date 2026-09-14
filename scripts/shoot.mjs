@@ -102,9 +102,12 @@ async function readDown(page, px, step = 90, pause = 90) {
 await scene("quiet", async (page) => {
   await vm(`cd ${DIR} && pm2 start ${TARGET} >/dev/null 2>&1; npx tsx --env-file=.env scripts/sweep.ts >/dev/null 2>&1; true`);
   await page.goto(`${BASE}/`, { waitUntil: "networkidle", timeout: 120_000 });
-  await sleep(3500);
-  await readDown(page, 1600);
-  await sleep(1500);
+  // This is the opening shot and the whole board has to be readable in it — three services, their
+  // checks, the sparkline of every reading, and the posture each one is under. Unhurried on purpose:
+  // the point being made is that a normal night is boring.
+  await sleep(5000);
+  await readDown(page, 2400, 70, 150);
+  await sleep(3000);
 });
 
 /* ── 1b. it is a product, not a window: register something and write its policy ── */
