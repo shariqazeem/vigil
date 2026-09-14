@@ -111,6 +111,14 @@ export function Live({
         </p>
       ) : null}
 
+      {events.length === 0 && phase !== "idle" && phase !== "working" ? (
+        <p className="lv-empty">
+          This one was worked before you opened the page, so there is nothing to watch live. Everything it did is in{" "}
+          <b>Everything it ran</b> below, with the exact command and the rule that permitted each one — that table is the record,
+          and this timeline is only the same thing arriving in real time.
+        </p>
+      ) : null}
+
       <ol className="lv-rows">
         {events.map((e, i) => (
           <Row key={i} e={e} last={i === events.length - 1 && phase === "working"} />

@@ -377,7 +377,7 @@ async function settle(ctx: IncidentContext): Promise<Outcome> {
   ctx.emit({ kind: "verify", label: probe?.label ?? "the check", ok: reading.ok, detail: reading.detail });
 
   if (reading.ok) {
-    const resolution = ctx.diagnosis ? `${ctx.diagnosis.split("\n")[0]!.slice(0, 200)} — fixed and verified.` : "Fixed and verified.";
+    const resolution = ctx.diagnosis ? `${firstSentence(ctx.diagnosis, 220)} Fixed, and the check that failed passes again.` : "Fixed, and the check that failed passes again.";
     resolveIncident(ctx.incidentId, reading, resolution);
     const downSeconds = Math.max(0, Math.round((reading.at - incident.openedAt) / 1000));
     const summary = `Fixed. ${probe?.label ?? "The check"} passes again: ${reading.detail}. Down for ${fmt(downSeconds)}.`;
@@ -401,6 +401,22 @@ async function settle(ctx: IncidentContext): Promise<Outcome> {
 }
 
 const fmt = (s: number) => (s < 90 ? `${s}s` : `${Math.round(s / 60)}m`);
+
+/**
+ * The first sentence of a diagnosis, for the one line that closes an incident.
+ *
+ * Slicing at a character count cut it mid-number — "lastStartedAt: 2026 — fixed and verified" —
+ * which reads like the software is broken rather than the service was. Prefer a sentence, fall back
+ * to a word boundary, and say so with an ellipsis when there is more.
+ */
+export function firstSentence(text: string, max: number): string {
+  const line = (text.split("\n")[0] ?? text).trim();
+  const stop = line.search(/[.!?](\s|$)/);
+  if (stop > 0 && stop + 1 <= max) return line.slice(0, stop + 1);
+  if (line.length <= max) return line.endsWith(".") ? line : `${line}.`;
+  const cut = line.slice(0, max);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 1)).trimEnd()}…`;
+}
 
 /**
  * Which interrupt this answer is for, from the three places the id can be.
