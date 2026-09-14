@@ -102,18 +102,20 @@ been fine", and that claim needs rows behind it.
 
 Here is a real run, taken from the audit table rather than from memory.
 
-I stopped a service on purpose. The sweep opened an incident and handed it over. The agent read the
-process table and the logs, and committed to a cause at 55% confidence: the site is returning 502
-because the upstream process is not running; pm2 reports it `stopped`; the output log shows Next.js
-reaching Ready each time with no error trace. It named the most recent commit touching the runtime
-as a suspect — and then said, in the same paragraph, that it had not confirmed that commit crashed
-anything.
+I stopped a service on purpose. Warden's own checks opened an incident and it was handed over. The
+agent read the process table, both log streams and the recent commits, and committed to a cause at
+85% confidence: the site is returning 502 because the process is stopped; pm2 reports it `stopped`
+with a `lastStartedAt` that sits between the last passing check and this one; the error log is empty
+and stdout shows only clean Next.js startup banners. Then the sentence I care about most —
+**"So I cannot name the trigger of the stop from logs alone — it was silent."** It named two commits
+that bracket when the service started getting unhealthy, for a person to look at if it recurs, and
+declined to blame either of them.
 
 The policy returned `allow` under rule `policy-may`. It ran `pm2 start vigil`, which came back ok in
-712ms.
+371ms.
 
 And then the step the whole product rests on: Warden re-ran the exact probe that had failed. Same
-check, same expectation, in code. It came back `200 in 1423ms`. That reading — its database id — is
+check, same expectation, in code. It came back `200 in 207ms`. That reading — its database id — is
 what closed the incident. The console reports the outage measured from the incident opening to that
 reading, not to the moment of the fix, because the moment of the fix is the number an agent would
 prefer to report.
