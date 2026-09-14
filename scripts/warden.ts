@@ -81,7 +81,7 @@ async function register() {
       matters: "If this is down, nobody can see what any of the others are doing — including this incident.",
       process: "warden",
       repo: "/home/ubuntu/warden",
-      url: "https://warden.80.225.209.190.sslip.io/",
+      url: "https://getwarden.vercel.app/",
       // It may diagnose itself, but not restart itself unasked: an operator that reboots the
       // machine it is reasoning on loses the run it was in the middle of.
       policy: ASK_BEFORE_ACTING,

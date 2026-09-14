@@ -19,7 +19,7 @@ about, and what it may never do, and a pure function reads that without the mode
 **The check decides whether it worked** — a problem is closed only by the same check passing again,
 never by the agent saying so.
 
-Live: **https://warden.80.225.209.190.sslip.io** (no sign-up) · Source:
+Live: **https://getwarden.vercel.app** (no sign-up) · Source:
 **https://github.com/shariqazeem/warden** · MIT
 
 Built on the **[Strands Agents SDK](https://github.com/strands-agents)** (TypeScript).
@@ -61,7 +61,7 @@ with arguments validated by zod, spawned with `execFile`. No shell string is eve
 
 ## Try it in 60 seconds
 
-**Break it yourself.** <https://warden.80.225.209.190.sslip.io/fleet> — no sign-up. If the board is quiet
+**Break it yourself.** <https://getwarden.vercel.app/fleet> — no sign-up. If the board is quiet
 there is a button on it that really runs `pm2 stop vigil` on the real machine. Warden's own checks
 notice, an incident opens, and you land on it with the run already streaming: what it looked at and
 why, the cause it commits to and how sure it is, the policy verdict with the rule that decided, the

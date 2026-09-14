@@ -322,4 +322,4 @@ bug 8 did. That is a good rate of return for a morning.
 ---
 
 *Warden is MIT: https://github.com/shariqazeem/warden · live, no sign-up:
-https://warden.80.225.209.190.sslip.io*
+https://getwarden.vercel.app*

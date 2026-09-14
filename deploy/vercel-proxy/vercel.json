@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "https://warden.80.225.209.190.sslip.io/" },
+    { "source": "/:path*", "destination": "https://warden.80.225.209.190.sslip.io/:path*" }
+  ],
+  "headers": [{ "source": "/api/(.*)", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }]
+}

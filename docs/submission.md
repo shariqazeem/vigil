@@ -16,7 +16,7 @@ redeploys within the rules you set, checks it is really back, and tells you.
 
 ## Links
 
-- **Live, no sign-up:** https://warden.80.225.209.190.sslip.io
+- **Live, no sign-up:** https://getwarden.vercel.app
 - **Source (MIT):** https://github.com/shariqazeem/warden
 - **Architecture diagram:** `docs/architecture.png` in the repo (Mermaid source beside it)
 
@@ -274,7 +274,7 @@ OpenAI-compatible gateway · nginx
 
 ## For the judges
 
-**Live, no sign-up, nothing to install:** https://warden.80.225.209.190.sslip.io — and the board
+**Live, no sign-up, nothing to install:** https://getwarden.vercel.app — and the board
 itself is one click away at `/fleet`, public on purpose.
 
 **The claim you should be most sceptical of is "the policy is code, not a prompt". This command is

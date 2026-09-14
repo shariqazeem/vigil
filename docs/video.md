@@ -35,7 +35,7 @@ Do these in order. The first one has bitten this project already.
    the next one comes back as `ask` under rule `cooldown` and the run halts instead of fixing
    anything. Wait it out, or accept it and record the halt instead — it is a good scene, just a
    different one.
-3. **Confirm the board is green.** Load https://warden.80.225.209.190.sslip.io/fleet and check all three
+3. **Confirm the board is green.** Load https://getwarden.vercel.app/fleet and check all three
    cards are up and nothing is waiting on an answer.
 3a. **Have a URL ready for beat 3** — something you actually run, that is actually up. Registering
    something that is already down makes the next ninety seconds confusing. And know that registering
