@@ -56,19 +56,22 @@ export default async function SettingsPage() {
         <ul className="st-when">
           <li>
             <span className="chip is-warn">stopped to ask you</span>
-            Warden worked out what to do and your policy says the decision is yours. The run is held open until you answer.
+            <span>Warden worked out what to do and your policy says the decision is yours. The run is held open until you answer.</span>
           </li>
           <li>
             <span className="chip is-down">acted, and it is still down</span>
-            It did what it was allowed to do and the check it re-ran still fails. It will not call that fixed.
+            <span>It did what it was allowed to do and the check it re-ran still fails. It will not call that fixed.</span>
           </li>
           <li>
             <span className="chip is-down">handing this back</span>
-            It could not find a cause, or nothing it was allowed to do would help.
+            <span>It could not find a cause, or nothing it was allowed to do would help.</span>
           </li>
           <li>
             <span className="chip is-ok">fixed it, and proved it</span>
-            Only to addresses set to <em>everything</em>. Something broke, Warden fixed it, and the check that failed passes again.
+            <span>
+              Only to addresses set to <em>everything</em>. Something broke, Warden fixed it, and the check that failed passes
+              again.
+            </span>
           </li>
         </ul>
         <p className="st-note">

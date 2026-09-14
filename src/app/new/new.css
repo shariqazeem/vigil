@@ -25,27 +25,9 @@
   color: var(--ink-faint);
 }
 
-.nw-field { display: grid; gap: 6px; }
-.nw-label { font-size: var(--fs-small); font-weight: 550; }
-.nw-label em { font-style: normal; font-weight: 400; color: var(--ink-ghost); margin-left: var(--s-2); }
-.nw-hint { font-size: var(--fs-mono); color: var(--ink-faint); line-height: 1.5; }
-.nw-err { font-size: var(--fs-mono); color: var(--down); line-height: 1.5; }
+/* The form primitives these pages share live in globals.css: every page that has a field in it
+   needs them, and they were defined here, where only /new could see them. */
 
-.nw-in {
-  width: 100%;
-  padding: 10px 13px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  transition: border-color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
-}
-.nw-in::placeholder { color: var(--ink-ghost); }
-.nw-in:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.nw-in.is-bad { border-color: var(--down-border); background: var(--down-soft); }
-select.nw-in { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--ink-faint) 50%), linear-gradient(135deg, var(--ink-faint) 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; padding-right: var(--s-6); }
-
-.nw-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); align-items: start; }
-.nw-narrow { max-width: 11rem; }
 
 /* ── the optional half ────────────────────────────────────────────── */
 

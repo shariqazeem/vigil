@@ -96,22 +96,8 @@
 .pe-op-n { margin: 0 0 3px; display: flex; align-items: center; gap: var(--s-3); font-weight: 500; }
 .pe-op-d { margin: 0; color: var(--ink-muted); font-size: var(--fs-small); line-height: 1.5; max-width: 56ch; }
 
-.pe-seg { display: inline-flex; flex: none; padding: 2px; gap: 2px; background: var(--bg-sunk); border-radius: var(--r-pill); border: 1px solid var(--border); }
-.pe-seg-b {
-  padding: 5px 13px;
-  border-radius: var(--r-pill);
-  font-size: var(--fs-mono);
-  font-weight: 550;
-  color: var(--ink-faint);
-  transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out);
-}
-.pe-seg-b:hover { color: var(--ink); }
-.pe-seg-b.is-on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-sm); }
-.pe-seg-b.is-on.is-may { color: var(--ok); }
-.pe-seg-b.is-on.is-ask { color: var(--warn); }
-.pe-seg-b.is-on.is-never { color: var(--down); }
-.pe-seg-b:disabled { opacity: 0.35; cursor: default; }
-.pe-locked { flex: none; }
+/* .pe-seg / .pe-seg-b live in globals.css — the settings page and the check adder use them too. */
+
 
 /* the save bar rides up only when something is actually different */
 .pe-bar {
@@ -190,3 +176,16 @@
 }
 .sp-reach b { color: var(--ink); font-weight: 600; }
 .sp-reach code { background: var(--surface); padding: 2px 5px; border-radius: var(--r-sm); }
+
+/* The table was letting the identifier column take a third of the width while the sentence that
+   explains what the identifier MEANS wrapped in a narrow ribbon. The prose is the column a person
+   actually reads. */
+.sp-ops { table-layout: fixed; }
+.sp-ops th:nth-child(1), .sp-ops td:nth-child(1) { width: 22%; }
+.sp-ops th:nth-child(2), .sp-ops td:nth-child(2) { width: 52%; }
+.sp-ops th:nth-child(3), .sp-ops td:nth-child(3) { width: 26%; }
+.sp-ops .in-op { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .sp-ops th:nth-child(1), .sp-ops td:nth-child(1) { width: 55%; }
+  .sp-ops th:nth-child(3), .sp-ops td:nth-child(3) { width: 45%; }
+}
