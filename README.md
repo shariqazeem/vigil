@@ -307,11 +307,16 @@ commit while explicitly declining to blame it. That is the tone the product is b
   also run tests and roll back to the previous build; neither has been the thing that fixed a real
   incident yet. `redeploy_previous` is `ask` in the default policy and has not been exercised
   against a real outage.
-- **The halt has not fired on the live fleet.** The interrupt path — the policy saying `ask`, the
-  run stopping, a human answering, the run resuming with `InterruptResponseContent` — is exercised
-  by the test suite (including the cooldown case, which raises a real interrupt and leaves a real
-  question in the decisions table) and by the CLI. No decision has been raised by the three live
-  services yet, because none of them has needed one.
+- **The halt has now fired on the live fleet, and the first one failed.** A restart fell inside the
+  cooldown, the policy said `ask`, and the run genuinely stopped holding a question — that part
+  worked. Answering it did not: the Strands interrupt id was held only in the memory of the process
+  that raised it, which was the sweep's, and it had exited. The answer arrived from another process
+  and the SDK threw `Agent is in an interrupted state`. The session on disk had always held the
+  answer; `resumeWithAnswer` now replays it with `initialize()` and asks the restored agent which
+  interrupt it is still holding. The same decision, answered again, ran the act in 318ms, re-ran the
+  check, got `200 in 310ms`, and closed an incident that had been open 17 minutes. So the path is
+  proven end to end on production now — but it is worth knowing it was proven by breaking first, and
+  that the test suite had not caught it, because every test resumed inside the process that halted.
 - **Confidence is the model's self-report.** The 0.5 floor stops the obviously unsure from acting;
   it does not make a confident wrong answer right. What catches that is the probe, afterwards.
 - **A diagnosis can be wrong and the fix still work.** The run above is an example: the cause of the
