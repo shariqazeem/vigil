@@ -10,7 +10,7 @@ import {
   openFdaEnforcement,
 } from "@/lib/sources";
 import type { CpscRecallRow, NhtsaComplaintRow, SourceResult } from "@/lib/sources/types";
-import { checkKey, contextFor, type Candidate, type Cluster, type PassContext } from "./pass-context";
+import { checkKey, contextFor, type Cluster, type PassContext } from "./pass-context";
 
 /**
  * The tools. Between them they hold every rule Vigil will not break, because a rule that lives only
@@ -554,31 +554,6 @@ export function ruleOnCandidateTool(canInterrupt: boolean) {
     },
   });
 }
-
-export const listHeld = tool({
-  name: "list_held",
-  description: "The records the match agent could not settle without asking the owner something. Ask about each one.",
-  inputSchema: z.object({}),
-  callback: (_input, context) => {
-    const ctx = ctxOf(context);
-    return {
-      held: ctx.held.map((h) => {
-        const cand = ctx.candidates.find((c) => c.sourceId === h.sourceId && c.thingId === h.thingId);
-        return {
-          thingId: h.thingId,
-          thing: describe(thingOf(ctx, h.thingId)),
-          sourceId: h.sourceId,
-          question: h.question,
-          why: h.reason,
-          severity: h.severity,
-          confidence: h.confidence,
-          record: cand?.summary?.slice(0, 900),
-          hazard: cand?.consequence,
-        };
-      }),
-    };
-  },
-});
 
 export const ruleOnPattern = tool({
   name: "rule_on_pattern",

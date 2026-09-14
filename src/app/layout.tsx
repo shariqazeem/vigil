@@ -16,6 +16,13 @@ export const metadata: Metadata = {
     title: "Vigil — it watches your things so you don't have to remember to",
     description: "An autonomous agent that checks the things in your home against NHTSA, CPSC and FDA safety data, and only surfaces when there is a real decision.",
     type: "website",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Vigil — nobody is checking on your behalf." }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Vigil — it watches your things so you don't have to remember to",
+    description: "An autonomous agent that checks the things in your home against live federal safety data, and only wakes you when one of them becomes dangerous.",
+    images: ["/og.png"],
   },
 };
 

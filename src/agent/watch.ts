@@ -25,7 +25,6 @@ import { NothingLeavesTheHouse, VigilGuards } from "./guards";
 import { Throttled } from "./throttle";
 import { checkKey, closeContext, contextFor, freeze, missingChecks, openContext, thaw, unruled, type PassContext, type PassEmit, type StoredContext } from "./pass-context";
 import { recorder } from "./recording";
-import { throttleStats } from "./throttle";
 import {
   askOwner,
   cpscSearch,
@@ -36,7 +35,6 @@ import {
   nhtsaComplaints,
   nhtsaRecalls,
   openFdaSearch,
-  listHeld,
   ruleOnCandidateTool,
   ruleOnPattern,
   setPlan,
