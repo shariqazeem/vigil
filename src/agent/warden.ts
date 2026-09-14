@@ -20,6 +20,7 @@ import {
   resolveIncident,
   updateIncident,
   rememberInterrupt,
+  withdrawDecision,
 } from "@/lib/db/warden";
 import { verifyIncident } from "@/lib/ops/sweep";
 import { makeModel, modelLabel, retryStrategy } from "./model";
@@ -291,7 +292,36 @@ export async function handleIncident(incidentId: string, emit: (e: WardenEmit) =
   }
 
   if (ctx.asked.length > 0 && !ctx.asked.every((a) => getDecision(a.decisionId)?.answeredAt)) halted = true;
-  return halted ? holdForHuman(ctx) : await settle(ctx);
+  return halted ? await holdUnlessItIsAlreadyFine(ctx) : await settle(ctx);
+}
+
+/**
+ * A run stopped on a question — but Warden may already have fixed the thing before it asked.
+ *
+ * This happened on the live fleet: it started a stopped process, then asked whether it could also
+ * run the test suite, and the run halted there. The service was up. The board said it was down and
+ * waiting on a human, and the sweep leaves a service alone while a question is outstanding, so it
+ * would have stayed that way until somebody answered a question that no longer mattered.
+ *
+ * The rule the whole product is built on decides this too: the probe says whether it is fixed. If
+ * the check that opened the incident passes now, the incident is closed and the question is
+ * withdrawn with the reason. If it does not, the question stands and the human is woken.
+ */
+async function holdUnlessItIsAlreadyFine(ctx: IncidentContext): Promise<Outcome> {
+  if (ctx.changes > 0) {
+    const settled = await settle(ctx);
+    if (settled.status === "resolved") {
+      for (const a of ctx.asked) {
+        const decision = getDecision(a.decisionId);
+        if (decision && !decision.answeredAt) {
+          withdrawDecision(a.decisionId, "Withdrawn: the check that opened this incident passed after what Warden had already done, so the answer was no longer needed.");
+        }
+      }
+      forgetSession(ctx.incidentId);
+      return settled;
+    }
+  }
+  return holdForHuman(ctx);
 }
 
 /** The run is stopped on a question. Say so, and leave it stopped. */

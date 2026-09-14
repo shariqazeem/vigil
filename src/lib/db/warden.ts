@@ -312,6 +312,17 @@ export function answerDecision(did: string, answer: string, note?: string): Deci
   return getDecision(did);
 }
 
+/**
+ * A question that no longer needs an answer.
+ *
+ * It happens for one good reason: Warden acted, then asked about something else, and the check it
+ * was worried about passed in the meantime. Leaving the question up would hold the incident open
+ * and keep the sweep off the service while the thing is demonstrably fine — so the answer is
+ * recorded as Warden's own, with the reason, rather than quietly deleted.
+ */
+export const withdrawDecision = (did: string, why: string): void =>
+  void db.update(decisions).set({ answer: "withdrawn", answerNote: why.slice(0, 300), answeredAt: now() }).where(eq(decisions.id, did)).run();
+
 export const markResumed = (did: string): void => void db.update(decisions).set({ resumedAt: now() }).where(eq(decisions.id, did)).run();
 
 /**
