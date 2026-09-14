@@ -170,3 +170,31 @@ export type Action = typeof actions.$inferSelect;
 export type Decision = typeof decisions.$inferSelect;
 export type Standing = typeof standing.$inferSelect;
 export type WardenEvent = typeof events.$inferSelect;
+
+/**
+ * WHERE TO REACH SOMEBODY.
+ *
+ * The product's promise is that it wakes you only when the decision is yours. It could not wake
+ * anybody: every halt sat on a page until a person happened to open it, which makes "wakes you"
+ * a description of a screen rather than of a thing that happens. A channel is a URL Warden POSTs
+ * to — Slack and Discord incoming webhooks are exactly this, and so is anything you write
+ * yourself. No credential is stored beyond the URL, which is what makes it safe to keep here.
+ */
+export const channels = sqliteTable("channels", {
+  id: text("id").primaryKey(),
+  ownerKey: text("owner_key").notNull(),
+  /** "webhook" — the only kind today, and the schema says so rather than pretending otherwise */
+  kind: text("kind").notNull().default("webhook"),
+  /** what a person calls it: "our #alerts channel" */
+  label: text("label").notNull(),
+  url: text("url").notNull(),
+  /** "halt" (only when it stops and asks) | "all" (also when it fixes something itself) */
+  level: text("level").notNull().default("halt"),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  /** what happened the last time Warden used it, so a silently broken hook is visible */
+  lastAt: integer("last_at"),
+  lastOk: integer("last_ok", { mode: "boolean" }),
+  lastNote: text("last_note"),
+  createdAt: integer("created_at").notNull(),
+});
+export type Channel = typeof channels.$inferSelect;

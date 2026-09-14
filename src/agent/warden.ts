@@ -27,6 +27,7 @@ import { Throttled } from "./throttle";
 import { TwoHandsOnly, WardenGuards } from "./guards";
 import { closeContext, contextFor, hasContext, openContext, type IncidentContext, type WardenEmit } from "./incident-context";
 import { act, giveUp, listTried, look, readIncident, recordDiagnosis } from "./tools";
+import { noticeUrl, notifyInBackground } from "@/lib/notify";
 
 /**
  * HANDLING ONE INCIDENT.
@@ -301,6 +302,15 @@ function holdForHuman(ctx: IncidentContext): Outcome {
   const summary = "Warden stopped and is waiting on you.";
   ctx.emit({ kind: "run.done", incidentId: ctx.incidentId, status: "waiting", downSeconds: null, summary });
   logEvent(ctx.serviceId, "policy", "halted", summary, ctx.incidentId);
+  // The one notification this product exists to send. Not awaited: the run is over, and a slow
+  // webhook must not hold the incident open.
+  notifyInBackground({
+    level: "halt",
+    serviceId: ctx.serviceId,
+    title: "stopped and is waiting on you",
+    body: ctx.asked.map((a) => getDecision(a.decisionId)?.question).filter(Boolean).join(" · ") || "It worked out what to do and your policy says the decision is yours.",
+    url: noticeUrl(`/i/${ctx.incidentId}`),
+  });
   return { incidentId: ctx.incidentId, status: "waiting", downSeconds: null, summary };
 }
 
@@ -318,6 +328,7 @@ async function settle(ctx: IncidentContext): Promise<Outcome> {
     updateIncident(ctx.incidentId, { status: "escalated", resolution: summary });
     ctx.emit({ kind: "run.done", incidentId: ctx.incidentId, status: "escalated", downSeconds: null, summary });
     logEvent(ctx.serviceId, "investigate", "escalated", summary, ctx.incidentId);
+    notifyInBackground({ level: "halt", serviceId: ctx.serviceId, title: "is handing this back", body: summary, url: noticeUrl(`/i/${ctx.incidentId}`) });
     closeContext(ctx.incidentId);
     return { incidentId: ctx.incidentId, status: "escalated", downSeconds: null, summary };
   }
@@ -342,6 +353,8 @@ async function settle(ctx: IncidentContext): Promise<Outcome> {
     const summary = `Fixed. ${probe?.label ?? "The check"} passes again: ${reading.detail}. Down for ${fmt(downSeconds)}.`;
     ctx.emit({ kind: "run.done", incidentId: ctx.incidentId, status: "resolved", downSeconds, summary });
     logEvent(ctx.serviceId, "verify", "resolved", summary, ctx.incidentId);
+    // "all" only: being told about something already fixed is news, not an interruption.
+    notifyInBackground({ level: "all", serviceId: ctx.serviceId, title: "fixed it, and proved it", body: summary, url: noticeUrl(`/i/${ctx.incidentId}`) });
     closeContext(ctx.incidentId);
     return { incidentId: ctx.incidentId, status: "resolved", downSeconds, summary };
   }
@@ -350,6 +363,9 @@ async function settle(ctx: IncidentContext): Promise<Outcome> {
   updateIncident(ctx.incidentId, { status: "escalated", resolution: summary });
   ctx.emit({ kind: "run.done", incidentId: ctx.incidentId, status: "escalated", downSeconds: null, summary });
   logEvent(ctx.serviceId, "verify", "not-fixed", summary, ctx.incidentId);
+  // A halt-level notice even though nobody was asked a question: something is still down and
+  // Warden has run out of things it is allowed to try. That is exactly when a person is needed.
+  notifyInBackground({ level: "halt", serviceId: ctx.serviceId, title: "acted, and it is still down", body: summary, url: noticeUrl(`/i/${ctx.incidentId}`) });
   closeContext(ctx.incidentId);
   return { incidentId: ctx.incidentId, status: "escalated", downSeconds: null, summary };
 }

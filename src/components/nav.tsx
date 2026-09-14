@@ -25,6 +25,7 @@ export async function Nav() {
         <div className="nav-links">
           <Link href="/" className="nav-link">Fleet</Link>
           <Link href="/activity" className="nav-link">Activity</Link>
+          <Link href="/settings" className="nav-link">Reach you</Link>
           {waiting.length > 0 ? (
             <Link href="/#waiting" className="nav-link is-waiting">
               Waiting

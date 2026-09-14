@@ -1,0 +1,36 @@
+/* Where Warden reaches you — the page that makes "it wakes you" a true sentence. */
+
+.st { max-width: 760px; margin: 0 auto; padding: var(--s-6) var(--gutter) var(--s-11); }
+.st-head { margin: var(--s-5) 0 var(--s-7); }
+.st-h1 { margin: 0 0 var(--s-4); font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: var(--tracking-h2); font-weight: 600; }
+.st-lede { margin: 0; color: var(--ink-muted); max-width: 62ch; }
+
+.st-sec { margin-top: var(--s-7); }
+
+.st-rows { list-style: none; margin: var(--s-4) 0 var(--s-3); padding: 0; display: grid; gap: var(--s-2); }
+.st-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-4); padding: var(--s-4); }
+.st-row-l { min-width: 0; }
+.st-row-n { margin: 0 0 4px; display: flex; align-items: center; gap: var(--s-3); font-weight: 600; font-size: var(--fs-small); }
+.st-row-u { margin: 0 0 4px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; }
+.st-row-last { margin: 0; font-size: var(--fs-mono); color: var(--ink-ghost); }
+.st-row-last.is-ok { color: var(--ok); }
+.st-row-last.is-bad { color: var(--down); }
+.st-row-test { margin: 4px 0 0; font-size: var(--fs-mono); color: var(--accent); }
+.st-row-go { display: flex; align-items: center; gap: var(--s-2); flex: none; }
+
+.st-add { margin-top: var(--s-4); padding: var(--s-5); display: grid; gap: var(--s-4); }
+.st-levels { display: inline-flex; gap: 2px; padding: 2px; background: var(--bg-sunk); border-radius: var(--r-pill); border: 1px solid var(--border); justify-self: start; }
+.st-more { margin-top: var(--s-2); }
+
+.st-when { list-style: none; margin: var(--s-4) 0 var(--s-4); padding: 0; display: grid; gap: var(--s-3); }
+.st-when li { display: grid; grid-template-columns: auto 1fr; gap: var(--s-3); align-items: baseline; font-size: var(--fs-small); color: var(--ink-muted); }
+.st-when .chip { flex: none; }
+.st-note { margin: 0; font-size: var(--fs-mono); color: var(--ink-faint); line-height: 1.6; max-width: 66ch; }
+.st-note code { background: var(--bg-sunk); padding: 2px 5px; border-radius: var(--r-sm); }
+.st-none { margin-top: var(--s-7); color: var(--ink-muted); font-size: var(--fs-small); }
+.st-none a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+@media (max-width: 560px) {
+  .st-row { flex-direction: column; }
+  .st-when li { grid-template-columns: 1fr; }
+}

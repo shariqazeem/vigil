@@ -8,6 +8,13 @@
       "when": 1789368407050,
       "tag": "0000_flaky_red_skull",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789375373828,
+      "tag": "0001_noisy_earthquake",
+      "breakpoints": true
     }
   ]
 }

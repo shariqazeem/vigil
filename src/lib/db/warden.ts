@@ -1,11 +1,11 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db, schema } from "./index";
-import type { Action, Decision, Incident, Probe, Reading, Service, Standing, WardenEvent } from "./schema";
+import type { Action, Channel, Decision, Incident, Probe, Reading, Service, Standing, WardenEvent } from "./schema";
 import { parsePolicy, type Policy } from "@/lib/ops/policy";
 import type { Target } from "@/lib/ops/operations";
 
-const { services, probes, readings, incidents, actions, decisions, standing, events } = schema;
+const { services, probes, readings, incidents, actions, decisions, standing, events, channels } = schema;
 
 const now = () => Date.now();
 const id = (p: string) => `${p}_${nanoid(10)}`;
@@ -405,3 +405,34 @@ export const parseSpec = (p: Probe): Record<string, unknown> => {
     return {};
   }
 };
+
+/* ── channels: how Warden reaches a person ────────────────────────── */
+
+export function addChannel(c: { ownerKey: string; label: string; url: string; level?: string }): Channel {
+  const row = {
+    id: id("ch"),
+    ownerKey: c.ownerKey,
+    kind: "webhook",
+    label: c.label,
+    url: c.url,
+    level: c.level ?? "halt",
+    enabled: true,
+    lastAt: null,
+    lastOk: null,
+    lastNote: null,
+    createdAt: now(),
+  } satisfies Channel;
+  db.insert(channels).values(row).run();
+  return row;
+}
+
+export const listChannels = (ownerKey: string): Channel[] =>
+  db.select().from(channels).where(and(eq(channels.ownerKey, ownerKey), eq(channels.enabled, true))).orderBy(channels.createdAt).all();
+
+export const getChannel = (cid: string): Channel | null => db.select().from(channels).where(eq(channels.id, cid)).get() ?? null;
+
+export const retireChannel = (cid: string): void => void db.update(channels).set({ enabled: false }).where(eq(channels.id, cid)).run();
+
+/** What happened the last time Warden used it. A hook that silently stopped working is a lie. */
+export const recordDelivery = (cid: string, ok: boolean, note: string): void =>
+  void db.update(channels).set({ lastAt: now(), lastOk: ok, lastNote: note.slice(0, 200) }).where(eq(channels.id, cid)).run();
