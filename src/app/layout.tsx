@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Rail } from "@/components/shell/rail";
 import { pendingDecisions } from "@/lib/db/warden";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Geist, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "../styles/tokens.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap", weight: ["400", "500", "600"] });
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap", weight: ["500", "600"] });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono", display: "swap", weight: ["400", "500"] });
 
 export const metadata: Metadata = {
@@ -31,7 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // The one number that should ever interrupt somebody, resolved once for every screen.
   const waiting = pendingDecisions().length;
   return (
-    <html lang="en" className={`${inter.variable} ${mono.variable}`}>
+    <html lang="en" className={`${inter.variable} ${mono.variable} ${geist.variable}`}>
       <body>
         <Rail waiting={waiting} />
         {children}

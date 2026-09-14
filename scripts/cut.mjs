@@ -38,9 +38,9 @@ mkdirSync(TMP, { recursive: true });
  */
 const BEATS = [
   { clip: "quiet", target: 18, title: "Three real services, on one machine", sub: "Warden checks each of them every few minutes, with nobody watching. This is what a normal night looks like." },
-  { clip: "console", target: 30, title: "You write what it may do", sub: "Seventeen operations, each with a sentence saying what granting it means. Four are refused by name and no policy can turn them on." },
+  { clip: "console", target: 30, title: "You write what it may do", sub: "Twenty actions, each with a sentence saying what granting it means. Four are refused by name and nothing you write can turn them on." },
   { clip: "breaks", target: 26, title: "Something breaks, for real", sub: "A real pm2 stop on the real machine. Warden's own checks notice — two failures in a row, because one blip is not an outage." },
-  { clip: "incident", target: 62, title: "It investigates, decides, acts — and proves it", sub: "Every command it runs, the policy verdict with the rule that decided, and then the same check, re-run." },
+  { clip: "incident", target: 62, title: "It investigates, decides, acts — and proves it", sub: "Every command it runs, the rule that decided, and then the same check, re-run." },
   { clip: "audit", target: 17, title: "And the receipt", sub: "Every call it made, with the exact command and the rule that permitted each one. Copy any of them and run it yourself." },
 ];
 

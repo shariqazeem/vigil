@@ -4,7 +4,8 @@ import { canEdit, canView, currentOwner } from "@/lib/auth/session";
 import { listIncidents, listProbes, listStanding, parseSpec, policyOf, readingsFor, getService } from "@/lib/db/warden";
 import { POSTURE_WORDS, decide, posture } from "@/lib/ops/policy";
 import { CheckNow } from "@/components/check-now";
-import { hasMachine, stanceOf } from "@/lib/ops/local";
+import { canOperate, stanceOf } from "@/lib/ops/local";
+import { opWord } from "@/lib/words";
 import { PolicyEditor, ProbeAdder, RetireProbe, ServiceDetails, ServiceSettings } from "./manage";
 import { catalogue } from "@/lib/ops/operations";
 import "../../i/[id]/incident.css";
@@ -54,7 +55,7 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
    */
   const verdictFor = (op: string): { label: string; tone: string; rule: string } => {
     const d = decide(op, policy, { actionsTaken: 0, minutesSinceLastAction: null });
-    if (d.rule === "forbidden-always") return { label: "never, under any policy", tone: "is-down", rule: d.rule };
+    if (d.rule === "forbidden-always") return { label: "never, whatever your rules say", tone: "is-down", rule: d.rule };
     if (d.verdict === "refuse") return { label: "never", tone: "is-down", rule: d.rule };
     if (d.verdict === "ask") return { label: "asks first", tone: "is-warn", rule: d.rule };
     return { label: "may", tone: "is-ok", rule: d.rule };
@@ -73,11 +74,11 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
         <div className="sp-welcome card">
           <p className="micro sp-welcome-k">Registered</p>
           <p className="sp-welcome-t">
-            Warden is watching this now. The next sweep picks it up on its own — or press <b>Check it now</b> to ask straight away.
+            Warden is watching this now. The next round picks it up on its own — or press <b>Check it now</b> to ask straight away.
           </p>
           <p className="sp-welcome-b">
             Below is everything it is able to do here, and every line of it is yours to change. Nothing on this page is a
-            description of what Warden intends; it is what the policy engine will actually answer when the agent asks.
+            description of what Warden intends; it is what your rules will actually answer when the agent asks.
           </p>
         </div>
       ) : null}
@@ -89,11 +90,12 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
           {service.host === "local" ? "on this machine" : service.host}
           {service.process ? ` · pm2 ${service.process}` : ""}
           {service.repo ? ` · ${service.repo}` : ""}
+          {service.hookUrl ? " · has a deploy hook" : ""}
         </p>
         <div className="sp-actions">
           <span className={`chip is-${stance.tone}`}>{stance.label}</span>
           {service.state === "paused" ? (
-            <span className="chip is-unknown">paused — no sweep touches this</span>
+            <span className="chip is-unknown">paused — no round touches this</span>
           ) : (
             <CheckNow serviceId={service.id} label="Check it now" />
           )}
@@ -121,7 +123,7 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
                   {up !== null ? <span className="sp-probe-up mono">{up}% of {rs.length}</span> : null}
                 </div>
                 <p className="sp-probe-spec mono">
-                  {p.kind === "http" ? `GET ${String(spec.url ?? "")}` : `pm2 · ${String(spec.process ?? "")}`} · every {p.everySeconds}s · opens an incident after{" "}
+                  {p.kind === "http" ? `GET ${String(spec.url ?? "")}` : `pm2 · ${String(spec.process ?? "")}`} · every {p.everySeconds}s · opens a problem after{" "}
                   {p.failuresToOpen} failure{p.failuresToOpen === 1 ? "" : "s"} in a row
                 </p>
                 {last ? <p className="sp-probe-last mono">{last.detail}</p> : null}
@@ -142,13 +144,12 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
         {mine ? <ProbeAdder serviceId={service.id} hasProcess={!!service.process} /> : null}
       </section>
 
-      {mine && !hasMachine(service) ? (
+      {mine && !canOperate(service) ? (
         <p className="sp-reach">
-          <b>Warden can see this one but cannot touch it.</b> It is watched over http, so it knows when the URL stops answering and
-          nothing more — no logs, no process table, no recent commits, and nothing it could do about any of them. To let it act, it
-          needs a machine it can reach: an ssh destination and a key, set up by whoever runs this Warden
-          (<code className="mono">WARDEN_SSH_KEYS</code>), then registered here. Until then the policy below is real but most of it
-          has nothing to act on.
+          <b>Warden can ask the network about this one, but cannot bring it back.</b> It can tell whether the name resolves, what
+          answers at the URL and whether that is the app or a proxy&rsquo;s error page, and whether the certificate is fine — and it
+          will say which. What it cannot do is act: there are no logs, no process table and nothing to restart. Give it a deploy or
+          restart hook below and that becomes the one act it has.
         </p>
       ) : null}
 
@@ -165,15 +166,15 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
           <>
             <p className="in-lede">
               {policy.note ? <em>&ldquo;{policy.note}&rdquo;</em> : null} At most {policy.maxActionsPerIncident} action
-              {policy.maxActionsPerIncident === 1 ? "" : "s"} on one incident, and no acting twice within {policy.cooldownMinutes} minutes.
+              {policy.maxActionsPerIncident === 1 ? "" : "s"} on one problem, and no acting twice within {policy.cooldownMinutes} minutes.
             </p>
             <div className="in-table-wrap">
               <table className="in-table sp-ops">
                 <thead>
                   <tr>
-                    <th>operation</th>
+                    <th>what</th>
                     <th>what it does</th>
-                    <th>on this service</th>
+                    <th>your rule</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -181,7 +182,7 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
                     const v = verdictFor(o.name);
                     return (
                       <tr key={o.name} className={o.risk === "forbidden" ? "is-refused" : ""}>
-                        <td className="mono in-op">{o.name}</td>
+                        <td className="in-op">{opWord(o.name)}</td>
                         <td className="sp-does">{o.does}</td>
                         <td>
                           <span className={`chip ${v.tone}`}>{v.label}</span>
@@ -214,7 +215,7 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
         <h2 className="in-h2">
           What has gone wrong
           <span className="in-count mono">
-            {incidents.length} incident{incidents.length === 1 ? "" : "s"}
+            {incidents.length} problem{incidents.length === 1 ? "" : "s"}
             {resolved.length ? ` · ${resolved.length} fixed without a human` : ""}
           </span>
         </h2>
@@ -236,7 +237,7 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
       {mine ? (
         <section className="sp-sec">
           <h2 className="in-h2">This service</h2>
-          <ServiceDetails serviceId={service.id} name={service.name} matters={service.matters} />
+          <ServiceDetails serviceId={service.id} name={service.name} matters={service.matters} hookUrl={service.hookUrl} />
           <ServiceSettings serviceId={service.id} name={service.name} paused={service.state === "paused"} />
         </section>
       ) : null}

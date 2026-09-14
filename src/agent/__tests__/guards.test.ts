@@ -46,6 +46,7 @@ const SERVICE: Service = {
   name: "demo",
   matters: "the demo is what people look at",
   host: "local",
+  hookUrl: null,
   sshKey: null,
   repo: "/srv/demo",
   process: "demo",

@@ -51,7 +51,7 @@ export default async function FleetPage() {
         <div className="hm-top">
           <div>
             <p className="hm-brand micro">{mine.length ? "Your fleet" : "The public fleet"}</p>
-            <h1 className="hm-h1">{mine.length ? "Everything you have asked Warden to watch." : "Three real services, one machine, no sign-up."}</h1>
+            <h1 className="hm-h1">{mine.length ? "Everything you asked Warden to watch." : "Three real services, no sign-up."}</h1>
           </div>
           <div className="hm-do">
             <Link href="/new" className="btn btn-accent">{mine.length ? "Watch something else" : "Watch something of yours"}</Link>
@@ -60,13 +60,13 @@ export default async function FleetPage() {
         </div>
         <p className="hm-lede">
           {mine.length
-            ? "Each card is one service: what Warden checks on it, every reading it has taken, and what your policy lets it do when a check fails."
-            : "This is the fleet this Warden actually watches, live. It is not a screenshot, the incidents in it really happened, and the button below really stops one of them."}
+            ? "Each card is one service: what Warden checks on it, every reading it has taken, and what your rules let it do when a check fails."
+            : "This is the fleet this Warden actually watches, live. It is not a screenshot, the outages in it really happened, and the button below really causes one."}
         </p>
         <div className="hm-stats">
           <Stat n={String(fleet.length)} of={mine.length ? "yours, watched" : "services watched"} />
           <Stat n={looks.toLocaleString()} of="checks run" />
-          <Stat n={String(all.length)} of={`incident${all.length === 1 ? "" : "s"}`} />
+          <Stat n={String(all.length)} of={`problem${all.length === 1 ? "" : "s"}`} />
           <Stat n={String(fixed.length)} of={`closed without waking anyone${medianDown ? ` · median ${fmt(medianDown)} down` : ""}`} />
         </div>
       </header>
@@ -100,13 +100,13 @@ export default async function FleetPage() {
         <section className="hm-start card">
           <h2 className="hm-start-h">Nothing of yours yet.</h2>
           <p className="hm-start-p">
-            Give Warden a URL and it starts checking. Give it the machine and the process as well and it can read the logs, the
-            process table and the last few commits when that URL stops answering — and, if you let it, put the thing back up and
-            prove it by asking the check again.
+            Give Warden a URL and it starts checking. Add your deploy hook and, when that URL stops answering, it works out why over
+            the network, redeploys within the rules you set, and proves it by asking the check again. Give it the machine and the
+            process as well and it can read the logs, the process table and the last few commits too.
           </p>
           <p className="hm-start-p">
             No account and no email: a signed cookie makes a service yours. Below is the fleet this Warden actually watches, live —
-            it is not a screenshot, and the incidents in it really happened.
+            it is not a screenshot, and the outages in it really happened.
           </p>
           <Link href="/new" className="btn btn-accent">Point it at something</Link>
         </section>
@@ -116,7 +116,7 @@ export default async function FleetPage() {
         <section className="hm-fleet">
           <h2 className="hm-h2">
             {mine.length ? "The public fleet" : "Watching, right now"}
-            <span className="hm-h2-n">anyone can watch these · nobody but their owner can change them</span>
+            <span className="hm-h2-n">anyone can watch these · only their owner can change them</span>
           </h2>
           {demo.map((s) => (
             <ServiceCard key={s.id} service={s} />
@@ -126,9 +126,9 @@ export default async function FleetPage() {
 
       <footer className="hm-foot">
         <p>
-          Warden has no shell. It can only invoke named operations from a fixed catalogue, and a per-service policy decides whether
-          each one happens, is refused, or stops the run and asks you. Every call it makes is on the incident page with the exact
-          command and the rule that permitted it.
+          Warden has no shell. It can only take named actions from a fixed list of twenty, and the rules you set for each service
+          decide whether each one happens, is refused, or stops the run and asks you. Every action is on the problem&rsquo;s page
+          with the exact command and the rule that decided.
         </p>
         <p className="mono">
           <a href="https://github.com/shariqazeem/warden" rel="noreferrer">source</a> · MIT · built on the Strands Agents SDK

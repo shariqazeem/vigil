@@ -253,4 +253,4 @@ system prompt, it meant I had not yet written the hook.
 ---
 
 *Warden: https://github.com/shariqazeem/warden (MIT). The suite that proves the boundaries —
-297 tests, offline, no model, nothing spawned — is `npx vitest run`.*
+327 tests, offline, no model, nothing spawned — is `npx vitest run`.*

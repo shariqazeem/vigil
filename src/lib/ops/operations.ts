@@ -34,6 +34,8 @@ export interface Target {
   process?: string | null;
   /** the node binary the service runs under, when it is not on PATH */
   nodeBin?: string | null;
+  /** a deploy or restart hook the owner gave Warden — the one act for a service with no machine */
+  hookUrl?: string | null;
 }
 
 export interface OpResult {
@@ -108,6 +110,20 @@ export interface OperationDef<I extends z.ZodTypeAny> {
 }
 
 const def = <I extends z.ZodTypeAny>(d: OperationDef<I>) => d;
+
+/**
+ * A deploy hook as it may be written down. Render, Railway, Vercel and Coolify all put the secret
+ * in the query string, and the audit table, the timeline and every event are read by people — so
+ * the query is reduced to "?…" everywhere the hook is described. The key never appears again.
+ */
+export function redactHook(raw: string): string {
+  try {
+    const u = new URL(raw);
+    return `${u.origin}${u.pathname}${u.search ? "?…" : ""}`;
+  } catch {
+    return "the deploy hook";
+  }
+}
 
 const pm2 = (t: Target) => (t.nodeBin ? { file: t.nodeBin, pre: ["/usr/bin/pm2"] } : { file: "pm2", pre: [] });
 
@@ -216,6 +232,104 @@ export const OPERATIONS = {
         socket.on("timeout", () => done({ ok: false, data: null, detail: `${url.host} did not answer within ${i.timeoutMs}ms` }));
         socket.on("error", (e: Error) => done({ ok: false, data: null, detail: `could not read the certificate: ${e.message.slice(0, 120)}` }));
       });
+    },
+  }),
+
+  dns_lookup: def({
+    name: "dns_lookup",
+    does: "Asks DNS what a URL's host name points at, so a name that stopped resolving is caught by name.",
+    risk: "read",
+    input: z.object({ url: z.string().url() }),
+    describe: (i) => `resolve ${new URL(i.url).hostname}`,
+    spawn: null,
+    direct: async (i) => {
+      const host = new URL(i.url).hostname.replace(/^\[|\]$/g, "");
+      const { isIP } = await import("node:net");
+      if (isIP(host)) return { ok: true, data: { host, literal: true }, detail: `${host} is an address, nothing to resolve` };
+      const { Resolver } = await import("node:dns/promises");
+      const r = new Resolver({ timeout: 5000, tries: 2 });
+      const [a, aaaa, cname] = await Promise.allSettled([r.resolve4(host), r.resolve6(host), r.resolveCname(host)]);
+      const addrs = [...(a.status === "fulfilled" ? a.value : []), ...(aaaa.status === "fulfilled" ? aaaa.value : [])];
+      const cnames = cname.status === "fulfilled" ? cname.value : [];
+      if (addrs.length === 0) {
+        const why = [a, aaaa].map((x) => (x.status === "rejected" ? ((x.reason as { code?: string })?.code ?? "no answer") : null)).find(Boolean) ?? "no records";
+        return { ok: false, data: { host, addresses: [], cnames }, detail: `${host} did not resolve: ${why}` };
+      }
+      return {
+        ok: true,
+        data: { host, addresses: addrs, cnames },
+        detail: `${host} → ${addrs.slice(0, 6).join(", ")}${cnames.length ? ` (CNAME ${cnames.join(", ")})` : ""}`,
+      };
+    },
+  }),
+
+  http_headers: def({
+    name: "http_headers",
+    does: "Fetches a URL without following it off-site and reports what answered: the status, the server, whether it is a proxy's error page.",
+    risk: "read",
+    input: z.object({
+      url: z.string().url(),
+      timeoutMs: z.coerce.number().int().min(500).max(30_000).default(10_000),
+    }),
+    describe: (i) => `GET ${i.url} (no redirects)`,
+    spawn: null,
+    /*
+     * The difference between "the app is broken" and "the thing in front of the app cannot reach
+     * it" is the whole diagnosis for a service that is a URL and nothing else. A 502 with
+     * Cloudflare's error page in the body is the proxy saying the origin is down — the app is not
+     * answering at all, which is exactly when a deploy hook is the right act.
+     *
+     * Redirects are followed by hand, and never off the original origin: "look at this URL" must
+     * not become "fetch wherever it points" from inside Warden's network.
+     */
+    direct: async (i) => {
+      const KEEP = ["server", "via", "cf-ray", "x-vercel-id", "x-powered-by", "content-type", "retry-after", "location"];
+      const ERROR_PAGE = /cloudflare|<title>\s*\d{3}\s|bad gateway|gateway time-?out|application error|service unavailable|nginx/i;
+      const origin = new URL(i.url).origin;
+      const hops: { url: string; status: number; ttfbMs: number; headers: Record<string, string> }[] = [];
+      let url = i.url;
+      for (let hop = 0; hop <= 5; hop++) {
+        const t0 = Date.now();
+        let res: Response;
+        try {
+          res = await fetch(url, { signal: AbortSignal.timeout(i.timeoutMs), redirect: "manual" });
+        } catch (e) {
+          const msg = e instanceof Error ? (e as Error & { cause?: { code?: string } }).cause?.code ?? e.message : String(e);
+          return { ok: false, data: { hops, error: msg }, detail: `${new URL(url).host} did not answer: ${msg}` };
+        }
+        const ttfbMs = Date.now() - t0;
+        const headers: Record<string, string> = {};
+        for (const k of KEEP) {
+          const v = res.headers.get(k);
+          if (v) headers[k] = v.slice(0, 200);
+        }
+        hops.push({ url, status: res.status, ttfbMs, headers });
+        const server = headers.server ?? headers.via ?? (headers["cf-ray"] ? "cloudflare" : headers["x-vercel-id"] ? "vercel" : null);
+        const who = server ? ` from ${server}` : "";
+        if (res.status >= 300 && res.status < 400 && headers.location) {
+          const next = new URL(headers.location, url);
+          if (next.origin !== origin) {
+            return { ok: true, data: { hops, offsite: next.origin }, detail: `${res.status}${who} redirects off-site to ${next.origin}; not followed` };
+          }
+          if (hop === 5) return { ok: false, data: { hops }, detail: `still redirecting after 5 hops (${next.pathname})` };
+          url = next.toString();
+          continue;
+        }
+        let body = "";
+        try {
+          body = (await res.text()).slice(0, 4000);
+        } catch {
+          /* a body that will not read is not the finding */
+        }
+        const errorPage = res.status >= 400 && ERROR_PAGE.test(body);
+        const line = `${res.status}${who} in ${ttfbMs}ms${hop ? ` after ${hop} redirect${hop === 1 ? "" : "s"}` : ""}`;
+        return {
+          ok: res.status < 400,
+          data: { hops, status: res.status, server, errorPage, contentType: headers["content-type"] ?? null },
+          detail: errorPage ? `${line} · the body is a proxy error page, so the origin behind it is what is down` : line,
+        };
+      }
+      return { ok: false, data: { hops }, detail: "still redirecting after 5 hops" };
     },
   }),
 
@@ -380,6 +494,42 @@ export const OPERATIONS = {
     },
   }),
 
+  call_hook: def({
+    name: "call_hook",
+    does: "POSTs the deploy or restart hook the owner gave this service, which redeploys or restarts it. Undoes itself: the same code comes back.",
+    risk: "reversible",
+    // The model chooses nothing here. The URL is the owner's, written down once on the service.
+    input: z.object({}),
+    describe: (_i, t) => `POST ${t.hookUrl ? redactHook(t.hookUrl) : "the deploy hook"}`,
+    spawn: null,
+    direct: async (_i, t) => {
+      if (!t.hookUrl) {
+        throw new Error(
+          "this service has no hook URL. Add a deploy or restart hook on its page — from Render, Railway, Vercel, Coolify — and this becomes the one act that can bring it back.",
+        );
+      }
+      const { checkProbeUrl } = await import("../net/targets");
+      const verdict = checkProbeUrl(t.hookUrl);
+      if (!verdict.ok) throw new Error(verdict.reason ?? "that hook URL is not somewhere Warden will send a request");
+      const t0 = Date.now();
+      let res: Response;
+      try {
+        res = await fetch(t.hookUrl, { method: "POST", redirect: "manual", signal: AbortSignal.timeout(15_000) });
+      } catch (e) {
+        const msg = e instanceof Error ? (e as Error & { cause?: { code?: string } }).cause?.code ?? e.message : String(e);
+        return { ok: false, data: { ms: Date.now() - t0, error: msg }, detail: `the hook did not answer: ${msg}` };
+      }
+      let body = "";
+      try {
+        body = (await res.text()).slice(0, 200).replace(/\s+/g, " ").trim();
+      } catch {
+        /* an unreadable body is not the finding */
+      }
+      const ok = res.status >= 200 && res.status < 300;
+      return { ok, data: { status: res.status, ms: Date.now() - t0 }, detail: `${res.status} in ${Date.now() - t0}ms${body ? ` — ${body}` : ""}` };
+    },
+  }),
+
   /* ── disruptive ─────────────────────────────────────────────────── */
 
   redeploy_previous: def({
@@ -467,18 +617,23 @@ export async function execute(name: OperationName, rawInput: unknown, target: Ta
    * A service with no machine of its own gets the network and nothing else.
    *
    * Some services are a URL and no more — registered from the console, with no checkout and no
-   * process. Every operation except `http_probe` is then a question about a machine, and with no
-   * target of their own the only machine to hand is the one Warden is running on. That would be
-   * misleading (a process table belonging to something else entirely) before it was anything worse,
-   * and "worse" is the right word for showing a stranger the host's processes and paths.
+   * process. Every operation that is not a question to the network is then a question about a
+   * machine, and with no target of their own the only machine to hand is the one Warden is running
+   * on. That would be misleading (a process table belonging to something else entirely) before it
+   * was anything worse, and "worse" is the right word for showing a stranger the host's processes
+   * and paths.
+   *
+   * What such a service does get: the four network reads, and `call_hook` — a POST to the deploy
+   * or restart hook its owner wrote down, which is the one act that can bring a URL back. That
+   * one refuses itself when there is no hook.
    *
    * This is not the policy speaking. The policy can grant `pm2_list` on such a service and the
    * grant will be honest about what it means: there is simply nothing here for it to be about.
    */
-  const NETWORK_ONLY: OperationName[] = ["http_probe", "tls_expiry"];
+  const NETWORK_ONLY: OperationName[] = ["http_probe", "tls_expiry", "dns_lookup", "http_headers", "call_hook"];
   if (!target.process && !target.repo && (target.host === "local" || !target.host) && !NETWORK_ONLY.includes(name)) {
     return fail(
-      `${name} asks about a machine, and this service has none — it is watched over the network only. Give it a machine to reach, a checkout or a process name, and this becomes possible.`,
+      `${name} asks about a machine, and this service has none — it is watched over the network only. Give it a machine to reach, a checkout or a process name, or a deploy hook URL, and this becomes possible.`,
     );
   }
 

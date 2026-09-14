@@ -31,6 +31,8 @@ export const services = sqliteTable("services", {
   process: text("process"),
   /** the node binary it runs under, when it is not the one on PATH */
   nodeBin: text("node_bin"),
+  /** a deploy or restart hook Warden may POST — the one act for a service it cannot reach */
+  hookUrl: text("hook_url"),
   /** JSON Policy — what Warden may do here without asking */
   policy: text("policy").notNull(),
   /** "watching" | "paused" */

@@ -42,6 +42,15 @@ describe("every status the code can write has words for it", () => {
     // The fallback returns the raw status as its own label. That is the drift this test exists for.
     expect(chip.label, `"${status}" has no words — add it to statusChip`).not.toBe(status);
     expect(chip.label).toMatch(/^[a-z]/);
+    // A chip is read at a glance from a card: one or two words, and never the product's own jargon.
+    expect(chip.label.split(" ").length).toBeLessThanOrEqual(2);
+    expect(chip.label).not.toMatch(/policy|probe|sweep|incident|operation|halt|escalat/);
+  });
+
+  it("says the outcomes in the words the console promises", () => {
+    expect(statusChip("resolved").label).toBe("fixed");
+    expect(statusChip("waiting").label).toBe("needs you");
+    expect(statusChip("escalated").label).toBe("handed back");
   });
 
   it("does not give the two unfinished outcomes the same words", () => {

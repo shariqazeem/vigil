@@ -10,6 +10,7 @@
  */
 import { allServices, autoRunsToday, logEvent, openIncidents, pendingDecisions } from "../src/lib/db/warden";
 import { sweepService } from "../src/lib/ops/sweep";
+import { handoverVerdict } from "../src/lib/ops/handover";
 import { handleIncident } from "../src/agent/warden";
 
 const AUTO = process.env.WARDEN_AUTO_HANDLE !== "0";
@@ -39,29 +40,14 @@ async function main() {
     });
 
     if (!AUTO) continue;
-    // A service with no machine to reach has nothing for an agent to investigate: every operation
-    // except the probe it already ran is a question about a machine it does not have. Spending a
-    // model call to be told that is waste, so the incident opens and waits for a person, who can
-    // still hand it over by hand from the board if they want to.
-    const reachable = !!service.process || !!service.repo || (service.host !== "local" && !!service.host);
     for (const incident of r.opened) {
-      if (!reachable) {
-        console.log(`  ${service.name}: watched over the network only — ${incident.id} is open and waiting for a person`);
-        logEvent(
-          service.id,
-          "system",
-          "no.machine",
-          "This service is watched over the network only, so there is nothing for Warden to investigate beyond the check that failed. Give it a machine to reach and it can read the logs, the process table and the recent commits.",
-          incident.id,
-        );
+      const verdict = handoverVerdict(service, autoRunsToday(service.ownerKey), DAILY);
+      if (!verdict.hand) {
+        console.log(`  ${service.name}: ${verdict.note} — ${incident.id} is open and waiting for a person`);
+        logEvent(service.id, "system", verdict.rule, verdict.note, incident.id);
         continue;
       }
-      const used = autoRunsToday(service.ownerKey);
-      if (used >= DAILY) {
-        console.log(`  ${service.name}: ${used} runs in the last day is the ceiling — ${incident.id} is open and waiting for a person`);
-        logEvent(service.id, "system", "auto.capped", `Warden has investigated ${used} incidents for this owner in a day. ${incident.id} was left for a person to hand over.`, incident.id);
-        continue;
-      }
+      if (verdict.note) console.log(`  ${service.name}: ${verdict.note}`);
       console.log(`  → handing ${incident.id} to Warden`);
       try {
         const out = await handleIncident(incident.id, (e) => {

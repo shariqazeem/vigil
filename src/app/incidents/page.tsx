@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { AlertTriangle, Check, Hand, MessageCircleQuestion, Radio } from "lucide-react";
+import { CountUp } from "@/components/count-up";
 import { currentOwner } from "@/lib/auth/session";
 import { allServices, listIncidents, listServices, pendingDecisions } from "@/lib/db/warden";
-import { chipClass, statusChip } from "@/lib/incident-status";
+import { statusChip } from "@/lib/incident-status";
 import { WaitingBanner } from "@/components/shell/rail";
 import "./incidents.css";
 
@@ -41,14 +43,14 @@ export default async function IncidentsPage() {
       <header className="iq-head">
         <h1 className="iq-h1">What has gone wrong.</h1>
         <p className="iq-lede">
-          Every incident across {services.length} service{services.length === 1 ? "" : "s"}, newest first — what failed, what
+          Every problem across {services.length} service{services.length === 1 ? "" : "s"}, newest first — what failed, what
           Warden did about it, and how long the thing was actually down, measured to the reading that proved it back rather than
           to the moment of the fix.
         </p>
         <div className="iq-stats">
-          <Stat v={String(rows.length)} k="incidents" />
-          <Stat v={String(fixed.length)} k="closed without waking anyone" />
-          <Stat v={String(open.length)} k={open.length === 1 ? "still open" : "still open"} />
+          <Stat v={<CountUp value={rows.length} />} k={rows.length === 1 ? "problem" : "problems"} />
+          <Stat v={<CountUp value={fixed.length} />} k="closed without waking anyone" />
+          <Stat v={<CountUp value={open.length} />} k="still open" />
           <Stat v={downs.length ? fmt(median(downs)) : "—"} k="median time down" />
         </div>
       </header>
@@ -61,18 +63,24 @@ export default async function IncidentsPage() {
           <Link href="/fleet">Watch the board</Link>, or <Link href="/new">point Warden at something</Link>.
         </p>
       ) : (
-        <ol className="iq-rows">
+        <ol className="tl">
           {rows.map((i) => {
             const svc = byId.get(i.serviceId);
+            const chip = statusChip(i.status);
+            const live = !i.resolvedAt;
+            const Icon = i.status === "resolved" ? Check : i.status === "waiting" ? MessageCircleQuestion : i.status === "escalated" ? Hand : live ? Radio : AlertTriangle;
             return (
               <li key={i.id}>
-                <Link href={`/i/${i.id}`} className="iq-row card">
-                  <span className={chipClass(i.status)}>{statusChip(i.status).label}</span>
-                  <span className="iq-svc">{svc?.name ?? "a service"}</span>
-                  <span className="iq-t">{i.title.replace(`${svc?.name ?? ""}: `, "")}</span>
-                  <span className="iq-sym mono">{i.symptom}</span>
-                  <span className="iq-when mono">{ago(i.openedAt)}</span>
-                  <span className="iq-down mono">{i.downSeconds !== null ? fmt(i.downSeconds) : "—"}</span>
+                <Link href={`/i/${i.id}`} className={`tl-row is-link is-${chip.tone}`}>
+                  <span className="tl-ic" aria-hidden><Icon size={14} strokeWidth={2.2} /></span>
+                  <span className="tl-body">
+                    <span className="tl-t">{i.title.replace(`${svc?.name ?? ""}: `, "")}</span>
+                    <span className="tl-m">
+                      <b>{svc?.name ?? "a service"}</b> · {chip.label} · {i.symptom}
+                      {i.downSeconds !== null ? ` · down ${fmt(i.downSeconds)}` : ""}
+                    </span>
+                  </span>
+                  <span className="tl-side">{live ? <span className="tl-live">live</span> : ago(i.openedAt)}</span>
                 </Link>
               </li>
             );
@@ -83,7 +91,7 @@ export default async function IncidentsPage() {
   );
 }
 
-function Stat({ v, k }: { v: string; k: string }) {
+function Stat({ v, k }: { v: React.ReactNode; k: string }) {
   return (
     <div className="iq-stat">
       <span className="iq-stat-v">{v}</span>

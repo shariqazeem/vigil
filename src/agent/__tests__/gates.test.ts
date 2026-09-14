@@ -483,7 +483,7 @@ describe("the control — the same harness, doing the legitimate thing", () => {
     // Stopped holding a question is NOT the same outcome as handing the problem back, and the
     // console says so in different words.
     expect(getIncident(incident.id)?.status).toBe("waiting");
-    expect(statusChip("waiting").label).toBe("waiting on you");
+    expect(statusChip("waiting").label).toBe("needs you");
     expect(statusChip("escalated").label).not.toBe(statusChip("waiting").label);
 
     closeContext(incident.id);

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { Activity, Bell, LayoutGrid, Plus, Radio, ScrollText } from "lucide-react";
+import { Ticker } from "@/components/ticker";
 import "./shell.css";
 
 /**
@@ -43,6 +44,7 @@ export function Rail({ waiting }: { waiting: number }) {
 
   return (
     <>
+      <Ticker />
       <nav className="rail" aria-label="Warden">
         <Link href="/" className="rail-brand" aria-label="Warden home">
           <span className="rail-mark" aria-hidden />

@@ -196,6 +196,8 @@ describe("decide — every operation under the two shipped policies", () => {
     const expected: Record<OperationName, string> = {
       http_probe: "allow",
       tls_expiry: "allow",
+      dns_lookup: "allow",
+      http_headers: "allow",
       pm2_list: "allow",
       pm2_logs: "allow",
       git_log: "allow",
@@ -206,6 +208,7 @@ describe("decide — every operation under the two shipped policies", () => {
       pm2_restart: "allow",
       pm2_start: "allow",
       run_tests: "allow",
+      call_hook: "allow",
       redeploy_previous: "ask",
       db_migrate: "refuse",
       delete_data: "refuse",
@@ -228,7 +231,7 @@ describe("decide — every operation under the two shipped policies", () => {
   });
 
   it("names only real operations in the shipped policies, and sorts each one exactly once", () => {
-    for (const p of [DEFAULT_POLICY, OBSERVE_ONLY]) {
+    for (const p of [DEFAULT_POLICY, ASK_BEFORE_ACTING, OBSERVE_ONLY]) {
       const all = [...p.may, ...p.ask, ...p.never];
       for (const op of all) expect(OPERATION_NAMES, op).toContain(op);
       expect(new Set(all).size).toBe(all.length);
@@ -236,8 +239,22 @@ describe("decide — every operation under the two shipped policies", () => {
     }
   });
 
+  it("call_hook — the one act a URL-only service has — is sorted like a restart on every preset", () => {
+    expect(riskOf("call_hook")).toBe("reversible");
+    expect(decide("call_hook", DEFAULT_POLICY, FRESH).verdict).toBe("allow");
+    expect(decide("call_hook", ASK_BEFORE_ACTING, FRESH).verdict).toBe("ask");
+    expect(decide("call_hook", OBSERVE_ONLY, FRESH)).toMatchObject({ verdict: "refuse", rule: "policy-never" });
+  });
+
+  it("the two new network reads are granted on every preset, like the http check itself", () => {
+    for (const p of [DEFAULT_POLICY, ASK_BEFORE_ACTING, OBSERVE_ONLY]) {
+      expect(decide("dns_lookup", p, FRESH).verdict).toBe("allow");
+      expect(decide("http_headers", p, FRESH).verdict).toBe("allow");
+    }
+  });
+
   it("keeps the forbidden four on every shipped policy's never list, belt and braces", () => {
-    for (const p of [DEFAULT_POLICY, OBSERVE_ONLY]) for (const op of FORBIDDEN) expect(p.never).toContain(op);
+    for (const p of [DEFAULT_POLICY, ASK_BEFORE_ACTING, OBSERVE_ONLY]) for (const op of FORBIDDEN) expect(p.never).toContain(op);
     expect(FORBIDDEN.every((op) => OPERATIONS[op].risk === "forbidden")).toBe(true);
     expect(OPERATION_NAMES.filter((n) => riskOf(n) === "forbidden").sort()).toEqual([...FORBIDDEN].sort());
   });
@@ -333,7 +350,7 @@ describe("the posture a card shows", () => {
   });
 
   it("demotes to asking when the one changing operation it may do is also on the never list", () => {
-    const contradictory: Policy = { ...DEFAULT_POLICY, never: [...DEFAULT_POLICY.never, "pm2_restart", "pm2_start", "run_tests"] };
+    const contradictory: Policy = { ...DEFAULT_POLICY, never: [...DEFAULT_POLICY.never, "pm2_restart", "pm2_start", "run_tests", "call_hook"] };
     // never beats may — the same precedence decide() uses — so nothing is left that can happen
     // unattended, and the card must not keep saying "may act".
     expect(posture(contradictory)).not.toBe("may-act");

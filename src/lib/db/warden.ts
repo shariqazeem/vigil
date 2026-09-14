@@ -21,6 +21,7 @@ export interface ServiceInput {
   repo?: string | null;
   process?: string | null;
   nodeBin?: string | null;
+  hookUrl?: string | null;
   policy: Policy;
 }
 
@@ -35,6 +36,7 @@ export function addService(s: ServiceInput): Service {
     repo: s.repo ?? null,
     process: s.process ?? null,
     nodeBin: s.nodeBin ?? null,
+    hookUrl: s.hookUrl ?? null,
     policy: JSON.stringify(s.policy),
     state: "watching",
     lastSweptAt: null,
@@ -50,7 +52,7 @@ export const listServices = (ownerKey: string): Service[] =>
   db.select().from(services).where(eq(services.ownerKey, ownerKey)).orderBy(services.createdAt).all();
 export const allServices = (): Service[] => db.select().from(services).orderBy(services.createdAt).all();
 
-export function renameService(sid: string, patch: Partial<Pick<Service, "name" | "matters" | "repo" | "process">>): void {
+export function renameService(sid: string, patch: Partial<Pick<Service, "name" | "matters" | "repo" | "process" | "hookUrl">>): void {
   db.update(services).set({ ...patch, updatedAt: now() }).where(eq(services.id, sid)).run();
 }
 
@@ -78,7 +80,7 @@ export function touchService(sid: string, patch: Partial<Pick<Service, "state" |
 }
 
 /** Everything an operation needs to reach this service. */
-export const targetOf = (s: Service): Target => ({ host: s.host, sshKey: s.sshKey, repo: s.repo, process: s.process, nodeBin: s.nodeBin });
+export const targetOf = (s: Service): Target => ({ host: s.host, sshKey: s.sshKey, repo: s.repo, process: s.process, nodeBin: s.nodeBin, hookUrl: s.hookUrl });
 export const policyOf = (s: Service): Policy => parsePolicy(s.policy);
 
 /* ── probes and readings ──────────────────────────────────────────── */

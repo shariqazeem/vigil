@@ -5,7 +5,8 @@ import { decisionsFor, getIncident, getProbe, getService, listActions, parseOpti
 import { Live, type OpenQuestion } from "./live";
 import "./incident.css";
 import { chipClass, statusChip } from "@/lib/incident-status";
-import { hasMachine } from "@/lib/ops/local";
+import { canOperate } from "@/lib/ops/local";
+import { opWord, riskWord, ruleWord, verdictTone, verdictWord } from "@/lib/words";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export default async function IncidentPage({ params, searchParams }: { params: P
   return (
     <main className="in">
       <p className="in-crumb micro">
-        <Link href="/fleet">warden</Link> / <Link href={`/s/${service.id}`}>{service.name}</Link> / incident
+        <Link href="/fleet">warden</Link> / <Link href={`/s/${service.id}`}>{service.name}</Link> / problem
       </p>
 
       <header className="in-head">
@@ -73,12 +74,12 @@ export default async function IncidentPage({ params, searchParams }: { params: P
         </div>
       ) : null}
 
-      {!hasMachine(service) ? (
+      {!canOperate(service) ? (
         <p className="sp-reach">
-          <b>This service is watched over the network only.</b> Warden can tell you the check stopped answering and nothing more —
-          there are no logs to read, no process table to look at and no commits to compare, because it has no machine of yours to
-          reach. Handing it over will produce an honest shrug. <Link href={`/s/${service.id}`}>Give it a machine</Link> and the same
-          incident becomes something it can actually work.
+          <b>This service is watched over the network only.</b> Warden can ask the network about it — does the name resolve, what
+          answers, is that the app or a proxy&rsquo;s error page, is the certificate fine — and it will say which. What it cannot do
+          is bring it back: there are no logs, no process table and nothing to restart.{" "}
+          <Link href={`/s/${service.id}`}>Give it a deploy or restart hook</Link> and that becomes the one act it has.
         </p>
       ) : null}
 
@@ -115,16 +116,16 @@ export default async function IncidentPage({ params, searchParams }: { params: P
           </span>
         </h2>
         <p className="in-lede">
-          Warden has no shell. Each row below is one named operation from a fixed catalogue, spawned without a shell, with the
-          policy rule that permitted it. Copy any command and run it yourself.
+          Warden has no shell. Each row below is one named action from a fixed list, spawned without a shell, with the rule of
+          yours that permitted it. Copy any command and run it yourself.
         </p>
         <div className="in-table-wrap">
           <table className="in-table">
             <thead>
               <tr>
-                <th>operation</th>
-                <th>risk</th>
-                <th>policy</th>
+                <th>what</th>
+                <th>how safe</th>
+                <th>your rule</th>
                 <th>command</th>
                 <th className="in-num">ms</th>
               </tr>
@@ -132,13 +133,15 @@ export default async function IncidentPage({ params, searchParams }: { params: P
             <tbody>
               {acts.map((a) => (
                 <tr key={a.id} className={a.verdict === "refuse" ? "is-refused" : a.verdict === "ask" ? "is-asked" : a.ok === false ? "is-failed" : ""}>
-                  <td className="mono in-op">{a.op}</td>
-                  <td>
-                    <span className={`chip ${a.risk === "read" ? "is-unknown" : a.risk === "reversible" ? "is-accent" : "is-warn"}`}>{a.risk}</span>
+                  <td className="in-op">
+                    {opWord(a.op)} <code className="mono in-op-raw">{a.op}</code>
                   </td>
                   <td>
-                    <span className={`chip ${a.verdict === "allow" ? "is-ok" : a.verdict === "ask" ? "is-warn" : "is-down"}`}>{a.verdict}</span>
-                    <span className="in-rule mono">{a.rule}</span>
+                    <span className={`chip ${a.risk === "read" ? "is-unknown" : a.risk === "reversible" ? "is-accent" : "is-warn"}`}>{riskWord(a.risk)}</span>
+                  </td>
+                  <td className="in-rule-cell">
+                    <span className={`chip is-${verdictTone(a.verdict)}`}>{verdictWord(a.verdict)}</span>
+                    <span className="in-rule mono" title={a.rule}>{ruleWord(a.rule)}</span>
                   </td>
                   <td className="mono in-cmd">{a.command ?? <span className="in-never">{a.reason}</span>}</td>
                   <td className="in-num mono">{a.ms ?? "—"}</td>
@@ -147,7 +150,7 @@ export default async function IncidentPage({ params, searchParams }: { params: P
               {acts.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="in-empty">
-                    Nothing has been run on this incident yet.
+                    Nothing has been run on this problem yet.
                   </td>
                 </tr>
               ) : null}
@@ -162,7 +165,7 @@ export default async function IncidentPage({ params, searchParams }: { params: P
             </>
           ) : (
             <>
-              An incident is only ever closed by re-running the check that opened it. Warden does not get to say it fixed something.
+              A problem is only ever closed by re-running the check that opened it. Warden does not get to say it fixed something.
             </>
           )}
         </p>

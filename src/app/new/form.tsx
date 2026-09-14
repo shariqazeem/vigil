@@ -43,6 +43,8 @@ interface Field {
   host: string;
   repo: string;
   process: string;
+  hookUrl: string;
+  notifyUrl: string;
   posture: Posture;
 }
 
@@ -56,6 +58,8 @@ const EMPTY: Field = {
   host: "",
   repo: "",
   process: "",
+  hookUrl: "",
+  notifyUrl: "",
   posture: "ask",
 };
 
@@ -90,6 +94,8 @@ export function NewService({ sshKeys, allowsPrivate, allowsLocal, first }: { ssh
           host: deep ? f.host || null : null,
           repo: deep ? f.repo || null : null,
           process: deep ? f.process || null : null,
+          hookUrl: f.hookUrl || null,
+          notifyUrl: f.notifyUrl || null,
           posture: f.posture,
         }),
       });
@@ -151,7 +157,7 @@ export function NewService({ sshKeys, allowsPrivate, allowsLocal, first }: { ssh
           />
           {errFor("url") ? <span className="nw-err">{errFor("url")}</span> : (
             <span className="nw-hint">
-              Asked every five minutes. Two failures in a row open an incident — one blip on a network is not an outage.
+              Asked every five minutes. Two failures in a row count as an outage — one blip on a network does not.
               {allowsPrivate ? "" : " This Warden watches public addresses only."}
             </span>
           )}
@@ -169,6 +175,54 @@ export function NewService({ sshKeys, allowsPrivate, allowsLocal, first }: { ssh
             <input className="nw-in mono" value={f.expectContains} onChange={(e) => set("expectContains", e.target.value)} placeholder="ok" maxLength={200} />
           </label>
         </div>
+
+        <label className="nw-field">
+          <span className="nw-label">
+            Deploy or restart hook <em>optional</em>
+          </span>
+          <input
+            className={`nw-in mono ${errFor("hookUrl") ? "is-bad" : ""}`}
+            value={f.hookUrl}
+            onChange={(e) => set("hookUrl", e.target.value)}
+            placeholder="https://api.render.com/deploy/srv-…?key=…"
+            inputMode="url"
+            maxLength={500}
+          />
+          {errFor("hookUrl") ? (
+            <span className="nw-err">{errFor("hookUrl")}</span>
+          ) : (
+            <span className="nw-hint">
+              A URL that redeploys or restarts this when POSTed — Render, Railway, Vercel and Coolify all issue one. It is the one thing
+              Warden can do for a service it cannot reach. The key in it is never shown again.
+            </span>
+          )}
+        </label>
+      </fieldset>
+
+      {/* ── where the owner is, which is what makes a halt a real one ── */}
+      <fieldset className="nw-set card">
+        <legend className="nw-leg">Where to reach you</legend>
+        <label className="nw-field">
+          <span className="nw-label">
+            A webhook <em>optional</em>
+          </span>
+          <input
+            className={`nw-in mono ${errFor("notifyUrl") ? "is-bad" : ""}`}
+            value={f.notifyUrl}
+            onChange={(e) => set("notifyUrl", e.target.value)}
+            placeholder="https://hooks.slack.com/services/…"
+            inputMode="url"
+            maxLength={500}
+          />
+          {errFor("notifyUrl") ? (
+            <span className="nw-err">{errFor("notifyUrl")}</span>
+          ) : (
+            <span className="nw-hint">
+              A Slack or Discord incoming webhook, or any URL that takes a POST. You hear when something breaks, and when Warden stops to
+              ask. Change it later in Settings.
+            </span>
+          )}
+        </label>
       </fieldset>
 
       {/* ── the machine, which is what turns a watch into an operator ── */}
@@ -262,8 +316,8 @@ export function NewService({ sshKeys, allowsPrivate, allowsLocal, first }: { ssh
           ))}
         </div>
         <p className="nw-note">
-          Four operations — migrating a database, deleting data, rotating a secret, destroying infrastructure — are refused by name
-          whatever you pick here, and no policy can turn them on. You can change everything else, operation by operation, on the
+          Four actions — migrating a database, deleting data, rotating a secret, destroying infrastructure — are refused by name
+          whatever you pick here, and no rule can turn them on. You can change everything else, action by action, on the
           next screen.
         </p>
       </fieldset>

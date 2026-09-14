@@ -3,6 +3,7 @@ import { canEdit, currentOwner } from "@/lib/auth/session";
 import { forgetService, getService, logEvent, renameService, touchService } from "@/lib/db/warden";
 import { describePolicy, sanitisePolicy } from "@/lib/ops/policy";
 import { confineLocal } from "@/lib/ops/local";
+import { checkProbeUrl } from "@/lib/net/targets";
 import { no, ok, readJson, text } from "@/lib/api";
 
 export const runtime = "nodejs";
@@ -20,6 +21,7 @@ const Patch = z.object({
   matters: z.string().trim().max(200).optional().nullable(),
   repo: z.string().trim().max(300).optional().nullable(),
   process: z.string().trim().max(80).optional().nullable(),
+  hookUrl: z.string().trim().max(500).optional().nullable(),
   state: z.enum(["watching", "paused"]).optional(),
   policy: z.unknown().optional(),
 });
@@ -57,6 +59,19 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   if ((b.repo !== undefined || b.process !== undefined) && !service.sshKey) {
     const confined = confineLocal({ repo: b.repo, process: b.process });
     if (confined.refused) return no(confined.refused, 400, b.repo ? "repo" : "process");
+  }
+
+  if (b.hookUrl) {
+    const verdict = checkProbeUrl(b.hookUrl);
+    if (!verdict.ok) return no(verdict.reason!, 400, "hookUrl");
+  }
+  if (b.hookUrl !== undefined) {
+    const next = b.hookUrl || null;
+    if (next !== service.hookUrl) {
+      renameService(id, { hookUrl: next });
+      // Never the URL: a deploy hook carries its key in the query string.
+      logEvent(id, "human", "hook.changed", next ? "a deploy hook was set" : "the deploy hook was removed");
+    }
   }
 
   if (b.name !== undefined || b.matters !== undefined || b.repo !== undefined || b.process !== undefined) {

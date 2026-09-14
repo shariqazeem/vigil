@@ -47,8 +47,8 @@ export default async function StartPage() {
             <span className="soft">whole sign-up.</span>
           </h1>
           <p className="lede">
-            There is nothing to create. Give Warden something you have running and a signed cookie makes it yours — the service
-            appears on your board and the next sweep picks it up. Everything after that is one screen.
+            There is nothing to create. Give Warden a URL, your deploy hook and where to reach you, and a signed cookie makes it yours —
+            the service appears on your board and the first check runs within minutes. Everything after that is one screen.
           </p>
         </header>
 
@@ -60,22 +60,22 @@ export default async function StartPage() {
             <li>
               <span className="sx-n">1</span>
               <div>
-                <b>It starts checking, every five minutes.</b> Two failures in a row open an incident, because one blip on a
-                network is not an outage. An https URL also gets a certificate check, free, at fourteen days&rsquo; notice.
+                <b>It starts checking, every five minutes.</b> Two failures in a row count as an outage, because one blip on a
+                network is not one. An https URL also gets a certificate check, free, at fourteen days&rsquo; notice.
               </div>
             </li>
             <li>
               <span className="sx-n">2</span>
               <div>
-                <b>You say what it may do.</b> All seventeen operations on one screen, each with a sentence saying what granting
-                it means. Four are refused by name and no policy can turn them on.
+                <b>You say what it may do.</b> All twenty actions on one screen, each with a sentence saying what granting it
+                means — calling your deploy hook among them. Four are refused by name and nothing you write can turn them on.
               </div>
             </li>
             <li>
               <span className="sx-n">3</span>
               <div>
-                <b>It works while you sleep.</b> It investigates, acts inside your policy, and proves the fix by re-running the
-                check that failed. It wakes you only when the decision is genuinely yours.
+                <b>It works while you sleep.</b> When your app goes down it works out why over the network, redeploys within your
+                rules, and proves the fix by re-running the check that failed. It wakes you only when the decision is genuinely yours.
               </div>
             </li>
           </ol>

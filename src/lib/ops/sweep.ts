@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/warden";
 import type { Incident, Probe, Reading, Service } from "@/lib/db/schema";
 import { execute, type OperationName } from "./operations";
+import { noticeUrl, notifyInBackground } from "@/lib/notify";
 
 /**
  * THE SWEEP. Asking every service whether it is alright, on a clock, with no model involved.
@@ -34,6 +35,15 @@ export type SweepEmit =
   | { kind: "sweep.note"; message: string };
 
 const noop = () => {};
+
+/** Reaching the owner must never fail a sweep — a broken webhook is not an outage. */
+function tell(n: Parameters<typeof notifyInBackground>[0]): void {
+  try {
+    notifyInBackground(n);
+  } catch {
+    /* written down by notify itself; nothing to do here */
+  }
+}
 
 /** The operation a probe runs, and the arguments it runs with. */
 function operationFor(probe: Probe, service: Service): { op: OperationName; input: Record<string, unknown> } {
@@ -128,6 +138,13 @@ export async function sweepService(service: Service, emit: (e: SweepEmit) => voi
         logEvent(service.id, "verify", "incident.resolved", `${probe.label}: ${reading.detail}`, existing.id);
         const downSeconds = Math.max(0, Math.round((reading.at - existing.openedAt) / 1000));
         emit({ kind: "incident.resolved", incidentId: existing.id, serviceId: service.id, downSeconds, resolution: reading.detail });
+        tell({
+          level: "all",
+          serviceId: service.id,
+          title: `${service.name} is back`,
+          body: `${probe.label}: ${reading.detail} — down ${downSeconds}s`,
+          url: noticeUrl(`/i/${existing.id}`),
+        });
         out.resolved.push(existing);
       }
       continue;
@@ -152,6 +169,13 @@ export async function sweepService(service: Service, emit: (e: SweepEmit) => voi
     });
     logEvent(service.id, "sweep", "incident.open", `${probe.label}: ${reading.detail}`, incident.id);
     emit({ kind: "incident.open", incidentId: incident.id, serviceId: service.id, title: incident.title, symptom: reading.detail });
+    tell({
+      level: "halt",
+      serviceId: service.id,
+      title: probe.kind === "tls" ? `${service.name} has a warning` : `${service.name} is down`,
+      body: `${probe.label}: ${reading.detail}`,
+      url: noticeUrl(`/i/${incident.id}`),
+    });
     out.opened.push(incident);
   }
 

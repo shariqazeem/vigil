@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { WardenEmit } from "@/agent/incident-context";
 import { isHalted, statusChip } from "@/lib/incident-status";
+import { opWord, ruleWord, verdictWord } from "@/lib/words";
 
 /**
  * THE TIMELINE. What Warden did, in the order it did it.
@@ -95,7 +96,7 @@ export function Live({
     <section className="lv">
       <header className="lv-bar">
         <span className={`chip ${phase === "working" ? "is-accent is-live" : phase === "halted" ? "is-warn" : phase === "done" ? "is-ok" : "is-unknown"}`}>
-          {phase === "working" ? "Warden is working" : phase === "halted" ? "Waiting on you" : phase === "done" ? "Finished" : "Not started"}
+          {phase === "working" ? "Working" : phase === "halted" ? "Needs you" : phase === "done" ? "Done" : "Not started"}
         </span>
         {canRun ? (
           <button type="button" className="btn btn-sm" onClick={() => connect("")} disabled={phase === "working" || phase === "halted"}>
@@ -106,8 +107,8 @@ export function Live({
 
       {events.length === 0 && phase === "idle" ? (
         <p className="lv-empty">
-          Nothing has been done about this yet. Hand it to Warden and watch — every command it runs, every policy decision, and the
-          check it re-runs at the end will appear here as it happens.
+          Nothing has been done about this yet. Hand it to Warden and watch — every command it runs, every decision your rules
+          make, and the check it re-runs at the end will appear here as it happens.
         </p>
       ) : null}
 
@@ -120,6 +121,8 @@ export function Live({
           and this timeline is only the same thing arriving in real time.
         </p>
       ) : null}
+
+      {events.length > 0 ? <Stages events={events} phase={phase} /> : null}
 
       <ol className="lv-rows">
         {events.map((e, i) => (
@@ -159,6 +162,42 @@ export function Live({
   );
 }
 
+/* ── the five stages ──────────────────────────────────────────────── */
+
+const STAGES = ["looks", "commits to a cause", "your rules decide", "acts", "re-runs the check"] as const;
+
+/** Which stage each event kind reaches. Derived from the events already received — never a timer. */
+function reached(e: WardenEmit): number {
+  switch (e.kind) {
+    case "look": case "looked": return 1;
+    case "diagnosis": return 2;
+    case "policy": case "decision": return 3;
+    case "act": case "acted": return 4;
+    case "verify": case "probe.start": case "probe.done": return 5;
+    default: return 0;
+  }
+}
+
+function Stages({ events, phase }: { events: WardenEmit[]; phase: Phase }) {
+  const fixed = events.some((e) => e.kind === "run.done" && e.status === "resolved");
+  const halted = phase === "halted";
+  const furthest = events.reduce((m, e) => Math.max(m, reached(e)), 0);
+  return (
+    <ol className="lv-stages" aria-label="Where the run is">
+      {STAGES.map((label, i) => {
+        const n = i + 1;
+        const state = fixed ? "done" : n < furthest ? "done" : n === furthest ? (halted ? "halt" : phase === "working" ? "now" : "done") : "todo";
+        return (
+          <li key={label} className={`lv-stage is-${state}`}>
+            <span className="lv-stage-dot" aria-hidden />
+            {label}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /* ── one row ──────────────────────────────────────────────────────── */
 
 function Row({ e, last }: { e: WardenEmit; last: boolean }) {
@@ -189,20 +228,20 @@ function render(e: WardenEmit): { kind: string; title: string; meta?: string; de
     case "node.start":
       return { kind: "step", title: e.label, tone: "quiet" };
     case "look":
-      return { kind: "looks at", title: e.command, detail: e.why, tone: "look" };
+      return { kind: "looks at", title: e.command, meta: opWord(e.op), detail: e.why, tone: "look" };
     case "looked":
       return { kind: e.ok ? "reads" : "nothing there", title: firstLine(e.summary), meta: `${e.ms}ms`, out: e.summary.length > 90 ? e.summary : undefined, tone: e.ok ? "look" : "quiet" };
     case "diagnosis":
       return { kind: `diagnosis · ${Math.round(e.confidence * 100)}% sure`, title: e.suspect ?? "cause identified", detail: e.text, tone: "think" };
     case "policy":
       return {
-        kind: `policy · ${e.verdict}`,
-        title: e.rule,
+        kind: `your rules · ${verdictWord(e.verdict)}`,
+        title: `${opWord(e.op)} — ${ruleWord(e.rule)}`,
         detail: e.reason,
         tone: e.verdict === "allow" ? "policy" : e.verdict === "ask" ? "ask" : "bad",
       };
     case "act":
-      return { kind: "acts", title: e.command, detail: e.why, tone: "act" };
+      return { kind: "acts", title: e.command, meta: opWord(e.op), detail: e.why, tone: "act" };
     case "acted":
       return { kind: e.ok ? "done" : "failed", title: firstLine(e.summary), meta: `${e.ms}ms`, out: e.summary.length > 90 ? e.summary : undefined, tone: e.ok ? "act" : "bad" };
     case "probe.start":

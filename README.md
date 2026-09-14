@@ -1,8 +1,23 @@
 # Warden
 
-**An autonomous operator for software that is already running.** It watches your services,
-investigates them when they break, fixes what your policy lets it fix, proves the fix by re-running
-the exact check that failed, and wakes you only when the decision is genuinely yours.
+**Give Warden a URL, your deploy hook, and where to reach you.** When your app goes down it works
+out why over the network, redeploys within the rules you set, checks it is really back, and tells
+you. You hear from it only when the decision is yours.
+
+Three inputs, and only the first is required:
+
+- **A URL.** Warden checks it every few minutes. Two failures in a row count as an outage, and it
+  starts looking: does the name resolve, what answers, is it a proxy's error page or your app's.
+- **Your deploy hook.** Render, Railway, Vercel, Fly and Coolify each issue one. Warden calls it
+  when the rules you set allow, then re-runs the exact check that failed before it says anything.
+- **Where to reach you.** A Slack or Discord webhook, or any URL that takes a POST. You hear when
+  something breaks, when Warden stops to ask, and when it is back.
+
+Two boundaries make that safe to hand over, and both are code rather than prompt. **Your rules
+decide whether an action happens** — for each service you say what Warden may do, what it must ask
+about, and what it may never do, and a pure function reads that without the model in the room.
+**The check decides whether it worked** — a problem is closed only by the same check passing again,
+never by the agent saying so.
 
 Live: **https://warden.80.225.209.190.sslip.io** (no sign-up) · Source:
 **https://github.com/shariqazeem/warden** · MIT
@@ -13,11 +28,11 @@ Built on the **[Strands Agents SDK](https://github.com/strands-agents)** (TypeSc
 
 ## Who this is for
 
-A team of one to five people with something in production. They have monitoring — a ping, an uptime
-check, a Slack webhook — and monitoring is a thing that wakes you up. It does not read the log. It
-does not look at what deployed at 02:14. It does not restart the process that is simply stopped.
-A person does that, at 3am, from a phone, and most of the time the person does the same four things
-in the same order.
+Anyone with something deployed and nobody on call for it. A team of one to five people has
+monitoring — a ping, an uptime check, a Slack webhook — and monitoring is a thing that wakes you up.
+It does not find out why. It does not press the redeploy button. It does not check that the thing
+actually came back. A person does that, at 3am, from a phone, and most of the time the person does
+the same four things in the same order.
 
 Warden does those four things. It stops where a human's judgement actually begins.
 
@@ -58,7 +73,7 @@ answer to it is a real outage rather than a video.
 
 **Then use it.** Press *Watch something of yours* and give it a URL. That is the whole sign-up: a
 signed cookie makes the service yours, and the next sweep picks it up. Everything after that is in
-the console — the policy editor (all seventeen operations, each with a sentence saying what granting
+the console — the policy editor (all twenty operations, each with a sentence saying what granting
 it means), adding and retiring checks, *check it now* streaming each probe as it answers, and
 `/settings` for where Warden should reach you when it stops to ask. Nothing about running Warden
 requires a terminal; the CLI still exists and does the same things, because the same functions are
@@ -69,7 +84,7 @@ behind both.
 ```bash
 npm install --legacy-peer-deps
 npx vitest run
-# 17 files, 297 tests, ~1s
+# 20 files, 327 tests, ~1s
 
 npx vitest run src/agent/__tests__/gates.test.ts
 # the red team: a jailbroken sequence pushed through the real hooks and the real tools
@@ -96,8 +111,8 @@ The web app is the product, not a view of it. Every page calls the same function
 | `/start` | The first minute, and mostly it says there is nothing to sign up for. Also where a **recovery key** is issued — see below. |
 | `/fleet` | Your fleet and the public one, kept apart. Live probe history per check, the postures, and *check everything now* — the same sweep the cron runs, streamed as each probe answers. A halted run is the one thing this page is ever loud about. |
 | `/incidents` | Every incident, newest first. The fleet page answers "is anything wrong now"; this answers the question you ask afterwards — what has gone wrong, how often, and what happened about it, which is what decides whether you widen a policy or narrow it. |
-| `/new` | Register something. A URL is a complete registration; a machine, a checkout and a pm2 process are what turn a watch into an operator. The posture is three sentences rather than seventeen switches, because nobody choosing this for the first time can judge whether `redeploy_previous` belongs in `ask`. |
-| `/s/[id]` | **The policy editor.** All seventeen operations, each with a sentence saying what granting it *means*, the action cap, the cooldown and the note. The four forbidden operations are shown locked rather than hidden. Nothing is applied until you press save. Also: add and retire checks, check it now, pause, delete. |
+| `/new` | Register something. A URL is a complete registration; a machine, a checkout and a pm2 process are what turn a watch into an operator. The posture is three sentences rather than twenty switches, because nobody choosing this for the first time can judge whether `redeploy_previous` belongs in `ask`. |
+| `/s/[id]` | **The policy editor.** All twenty operations, each with a sentence saying what granting it *means*, the action cap, the cooldown and the note. The four forbidden operations are shown locked rather than hidden. Nothing is applied until you press save. Also: add and retire checks, check it now, pause, delete. |
 | `/i/[id]` | One incident, live over SSE. Hand it over, watch it work, answer it when it stops — and every command at the bottom with the rule that permitted it. |
 | `/activity` | Every operation across every service, newest first, refusals as prominent as acts. |
 | `/settings` | Where Warden should reach you. |
@@ -244,7 +259,7 @@ flowchart LR
   POLICY{{"<b>THE POLICY</b> — per service, written by a human<br/>may → do it · ask → stop and ask · never → refuse<br/><i>plus an action cap and a cooldown</i>"}}:::policy
   CONSOLE == "a human writes it, in the console" ==> POLICY
 
-  CAT[("<b>the catalogue</b> — 17 named operations<br/>zod-validated args, spawned with execFile<br/><i>there is no shell, and no way to compose one</i><br/>4 are forbidden to every policy")]:::src
+  CAT[("<b>the catalogue</b> — 20 named operations<br/>zod-validated args, spawned with execFile<br/><i>there is no shell, and no way to compose one</i><br/>4 are forbidden to every policy")]:::src
 
   INV --> GUARD
   REM --> GUARD
@@ -356,13 +371,17 @@ Four rules in `src/agent/guards.ts`, enforced in a `BeforeToolCallEvent` hook be
 4. **No acting past a refusal.** Once an operation has been refused on this incident, it cannot be
    re-attempted with different wording.
 
-**The catalogue** (`src/lib/ops/operations.ts`) is 17 named operations: 9 `read`
-(`http_probe`, `tls_expiry`, `pm2_list`, `pm2_logs`, `git_log`, `git_show`, `read_file`,
-`grep_repo`, `disk_free`), 3 `reversible` (`pm2_restart`, `pm2_start`, `run_tests`), 1 `disruptive`
+**The catalogue** (`src/lib/ops/operations.ts`) is 20 named operations: 11 `read`
+(`http_probe`, `tls_expiry`, `dns_lookup`, `http_headers`, `pm2_list`, `pm2_logs`, `git_log`,
+`git_show`, `read_file`, `grep_repo`, `disk_free`), 4 `reversible` (`pm2_restart`, `pm2_start`,
+`run_tests`, `call_hook`), 1 `disruptive`
 (`redeploy_previous`), and 4 `forbidden` — `db_migrate`, `delete_data`, `rotate_secret`,
 `destroy_infra`. The forbidden four are **declared rather than omitted**, so the product can show
 you the line. `decide()` refuses forbidden risk before it consults the policy at all, so no policy
-can grant them, and `execute()` refuses them again if called directly.
+can grant them, and `execute()` refuses them again if called directly. The two network reads and
+`call_hook` are what a service that is only a URL gets: Warden can ask whether the name resolves and
+what answers before it POSTs the deploy hook you gave it — and the hook's key never appears in the
+audit trail.
 
 Also in code, not in a prompt: file paths are resolved inside the service's own checkout or the
 operation fails (`insideRepo`); a process name or git ref carrying a shell metacharacter fails its
@@ -384,7 +403,7 @@ throws, so after each attempt the test asserts *nothing was spawned*, *nothing l
 legitimate look, a diagnosis, an allowed restart — which does run and does write, because a
 red-team test that passes against a broken harness proves nothing.
 
-The whole suite is 297 tests across 18 files, about a second, fully offline: no network, no model,
+The whole suite is 327 tests across 20 files, about a second, fully offline: no network, no model,
 no process spawned.
 
 ## The one check that fails before anything is broken

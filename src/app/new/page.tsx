@@ -20,7 +20,7 @@ export const metadata = {
  * Everything about this page is arranged around one claim: you can hand a running system to an
  * agent in under a minute and still know exactly what you have agreed to. So the form is short, the
  * only required field is how to tell whether the thing is alright, and the decision that actually
- * matters — what Warden may do when it is not — is three sentences, not seventeen switches.
+ * matters — what Warden may do when it is not — is three sentences, not twenty switches.
  */
 export default async function NewServicePage() {
   const owner = await currentOwner();
@@ -35,9 +35,10 @@ export default async function NewServicePage() {
       <header className="nw-head">
         <h1 className="nw-h1">{mine.length ? "Watch something else" : "Point Warden at something you have running."}</h1>
         <p className="nw-lede">
-          One URL is enough to begin. Tell it the machine and the process as well and it can read the logs, the process table and
-          the last few commits when that URL stops answering — which is the difference between being told something is down and
-          being told why.
+          One URL is enough to begin. Add your deploy hook and Warden can bring the thing back when it goes down; add where to reach
+          you and you hear about it. Tell it the machine and the process as well and it can read the logs, the process table and
+          the last few commits when that URL stops answering — the difference between being told something is down and being
+          told why.
         </p>
       </header>
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { addProbe, addService, allServices, listServices } from "@/lib/db/warden";
+import { addChannel, addProbe, addService, allServices, listChannels, listServices } from "@/lib/db/warden";
 import { ASK_BEFORE_ACTING, DEFAULT_POLICY, OBSERVE_ONLY } from "@/lib/ops/policy";
 import { sshKeyPath } from "@/lib/ops/hosts";
 import { checkHost, checkProbeUrl } from "@/lib/net/targets";
@@ -41,6 +41,10 @@ const Body = z.object({
   repo: z.string().trim().max(300).optional().nullable(),
   process: z.string().trim().max(80).optional().nullable(),
   nodeBin: z.string().trim().max(300).optional().nullable(),
+  /** a deploy or restart hook — the one act Warden can take on a service it cannot reach */
+  hookUrl: z.string().trim().max(500).optional().nullable(),
+  /** where to reach the owner: a Slack or Discord incoming webhook, or anything that takes a POST */
+  notifyUrl: z.string().trim().max(500).optional().nullable(),
   everySeconds: z.coerce.number().int().min(60).max(86_400).default(300),
   posture: z.enum(["observe", "ask", "may"]).default("ask"),
 });
@@ -104,6 +108,16 @@ export async function POST(req: Request) {
     const verdict = checkProbeUrl(b.url);
     if (!verdict.ok) return no(verdict.reason!, 400, "url");
   }
+  // A hook is a POST from this machine on the agent's say-so, and a notify URL is a POST with the
+  // service's name in it — both are the same SSRF shape as a probe and get the same door.
+  if (b.hookUrl) {
+    const verdict = checkProbeUrl(b.hookUrl);
+    if (!verdict.ok) return no(verdict.reason!, 400, "hookUrl");
+  }
+  if (b.notifyUrl) {
+    const verdict = checkProbeUrl(b.notifyUrl);
+    if (!verdict.ok) return no(verdict.reason!, 400, "notifyUrl");
+  }
 
   const service = addService({
     ownerKey: fresh.owner.key,
@@ -114,8 +128,16 @@ export async function POST(req: Request) {
     repo,
     process: process_,
     nodeBin,
+    hookUrl: b.hookUrl || null,
     policy: POLICIES[b.posture],
   });
+
+  if (b.notifyUrl) {
+    const existing = listChannels(fresh.owner.key);
+    if (!existing.some((c) => c.url === b.notifyUrl) && existing.length < 5) {
+      addChannel({ ownerKey: fresh.owner.key, label: "where Warden reaches you", url: b.notifyUrl, level: "halt" });
+    }
+  }
 
   if (b.url) {
     addProbe({

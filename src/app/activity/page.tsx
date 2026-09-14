@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Ban, Eye, Hand, Wrench } from "lucide-react";
+import { opWord, ruleWord, verdictTone, verdictWord } from "@/lib/words";
 import { currentOwner } from "@/lib/auth/session";
 import { allServices, listActions, listEvents, listIncidents, listServices } from "@/lib/db/warden";
 import "./activity.css";
@@ -7,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Activity — Warden",
-  description: "Every operation Warden has run, with the rule that permitted it.",
+  description: "Every action Warden has run, with the rule that permitted it.",
 };
 
 /**
@@ -55,12 +57,12 @@ export default async function ActivityPage() {
       <header className="ac-head">
         <h1 className="ac-h1">Everything it has done.</h1>
         <p className="ac-lede">
-          Every operation Warden has run across {services.length} service{services.length === 1 ? "" : "s"}, newest first, with the
-          policy rule that permitted each one and exactly what came back. Copy any command and run it yourself — that is what the
+          Every action Warden has run across {services.length} service{services.length === 1 ? "" : "s"}, newest first, with the
+          rule that permitted each one and exactly what came back. Copy any command and run it yourself — that is what the
           column is for.
         </p>
         <div className="ac-stats">
-          <span className="ac-stat"><b>{every.length}</b> operations</span>
+          <span className="ac-stat"><b>{every.length}</b> actions</span>
           <span className="ac-stat"><b>{acted}</b> that changed something</span>
           <span className="ac-stat"><b>{asked}</b> stopped to ask</span>
           <span className="ac-stat"><b>{refused}</b> refused</span>
@@ -97,31 +99,33 @@ export default async function ActivityPage() {
             Nothing yet. Warden has not needed to do anything — which, for an operator, is the normal state and the good one.
           </p>
         ) : (
-          <ol className="ac-rows">
-            {rows.map((a) => (
-              <li key={a.id} className={`ac-row is-${a.verdict}`}>
-                <span className="ac-dot" aria-hidden="true" />
-                <div className="ac-body">
-                  <p className="ac-line">
-                    <span className="mono ac-op">{a.op}</span>
-                    <span className={`chip ${a.verdict === "allow" ? (a.risk === "read" ? "is-unknown" : "is-accent") : a.verdict === "ask" ? "is-warn" : "is-down"}`}>
-                      {a.verdict === "allow" ? (a.risk === "read" ? "read" : "changed something") : a.verdict === "ask" ? "stopped to ask" : "refused"}
-                    </span>
-                    <Link href={`/s/${a.serviceId}`} className="ac-svc">{byId.get(a.serviceId)?.name ?? "a service"}</Link>
-                    <span className="mono ac-when">{ago(a.at)}{a.ms ? ` · ${a.ms}ms` : ""}</span>
-                  </p>
-                  {a.command ? <pre className="well ac-cmd">{a.command}</pre> : null}
-                  <p className="ac-why">
-                    <span className="micro">{a.rule}</span>
-                    {a.reason}
-                  </p>
-                  {a.output ? <pre className="well ac-out">{a.output.slice(0, 400)}</pre> : null}
-                  <Link href={`/i/${a.incidentId}`} className="ac-inc">
-                    {a.incident.title.replace(`${byId.get(a.serviceId)?.name ?? ""}: `, "")} →
-                  </Link>
-                </div>
-              </li>
-            ))}
+          <ol className="tl">
+            {rows.map((a) => {
+              const tone = a.verdict === "allow" && a.risk === "read" ? "unknown" : verdictTone(a.verdict);
+              const Icon = a.verdict === "refuse" ? Ban : a.verdict === "ask" ? Hand : a.risk === "read" ? Eye : Wrench;
+              return (
+                <li key={a.id} className={`tl-row is-${tone}`}>
+                  <span className="tl-ic" aria-hidden><Icon size={14} strokeWidth={2.2} /></span>
+                  <div className="tl-body">
+                    <p className="tl-t">
+                      {opWord(a.op)}
+                      <span className={`chip is-${tone} ac-verdict`}>{a.verdict === "allow" && a.risk === "read" ? "looked" : verdictWord(a.verdict)}</span>
+                    </p>
+                    <p className="tl-m">
+                      <Link href={`/s/${a.serviceId}`}><b>{byId.get(a.serviceId)?.name ?? "a service"}</b></Link> · {ruleWord(a.rule)}
+                      {a.ms ? ` · ${a.ms}ms` : ""}
+                    </p>
+                    {a.command ? <pre className="well ac-cmd">{a.command}</pre> : null}
+                    {a.reason ? <p className="ac-why">{a.reason}</p> : null}
+                    {a.output ? <pre className="well ac-out">{a.output.slice(0, 400)}</pre> : null}
+                    <Link href={`/i/${a.incidentId}`} className="ac-inc">
+                      {a.incident.title.replace(`${byId.get(a.serviceId)?.name ?? ""}: `, "")} →
+                    </Link>
+                  </div>
+                  <span className="tl-side">{ago(a.at)}</span>
+                </li>
+              );
+            })}
           </ol>
         )}
       </section>

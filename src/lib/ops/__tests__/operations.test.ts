@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OPERATIONS, OPERATION_NAMES, catalogue, execute, insideRepo, riskOf, withServiceDefaults, type OperationName, type Target } from "../operations";
+import { OPERATIONS, OPERATION_NAMES, catalogue, execute, insideRepo, redactHook, riskOf, withServiceDefaults, type OperationName, type Target } from "../operations";
 
 /**
  * WARDEN HAS NO SHELL. This file is the evidence.
@@ -450,9 +450,76 @@ describe("an http-only service has no machine to ask about", () => {
     expect(res.error ?? "").not.toContain("asks about a machine");
   });
 
+  it.each(["dns_lookup", "http_headers", "call_hook"] as const)("lets %s through the machine gate — it asks the network, not a machine", async (op) => {
+    const res = await execute(op, { url: "http://127.0.0.1:1/" }, URL_ONLY);
+    expect(res.error ?? "").not.toContain("asks about a machine");
+    expect(proc.spawned.length, "nothing may be spawned").toBe(0);
+  });
+
+  it("dns_lookup answers an address literal without asking any resolver", async () => {
+    const res = await execute("dns_lookup", { url: "http://127.0.0.1:1/" }, URL_ONLY);
+    expect(res.ok).toBe(true);
+    expect(res.stdout).toContain("nothing to resolve");
+    expect(res.command).toBe("resolve 127.0.0.1");
+  });
+
+  it("http_headers reports a port that refuses, and never follows a redirect", async () => {
+    const res = await execute("http_headers", { url: "http://127.0.0.1:1/" }, URL_ONLY);
+    expect(res.ok).toBe(false);
+    expect(res.command).toBe("GET http://127.0.0.1:1/ (no redirects)");
+    expect(proc.spawned.length).toBe(0);
+  });
+
   it("does not get in the way of a service that does have a machine", async () => {
     proc.set(async () => ({ stdout: "[]", stderr: "" }));
     const res = await execute("pm2_list", {}, { host: "local", sshKey: null, repo: "/srv/app", process: "app", nodeBin: null });
     expect(res.ok).toBe(true);
+  });
+});
+
+/**
+ * THE DEPLOY HOOK. The one act a service with no machine can be given, and the one place a secret
+ * passes through Warden's hands: Render, Railway, Vercel and Coolify all put the key in the query
+ * string, and the command column of the audit table is read by people.
+ */
+describe("call_hook — the one act a URL-only service has", () => {
+  const URL_ONLY = { host: "local", sshKey: null, repo: null, process: null, nodeBin: null, hookUrl: null };
+  const HOOK = "http://127.0.0.1:1/deploy?key=secret";
+
+  afterEach(() => {
+    delete process.env.WARDEN_ALLOW_PRIVATE_TARGETS;
+  });
+
+  it("refuses itself when the service has no hook, and spawns nothing", async () => {
+    const res = await execute("call_hook", {}, URL_ONLY);
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/no hook URL/);
+    expect(proc.spawned.length).toBe(0);
+  });
+
+  it("takes no argument from the model — the URL is the owner's, not the agent's", () => {
+    expect(Object.keys((OPERATIONS.call_hook.input as unknown as { shape: Record<string, unknown> }).shape)).toEqual([]);
+  });
+
+  it("describes the POST with the key redacted, so the secret never reaches the audit table", async () => {
+    process.env.WARDEN_ALLOW_PRIVATE_TARGETS = "1";
+    const res = await execute("call_hook", {}, { ...URL_ONLY, hookUrl: HOOK });
+    expect(res.command).toBe("POST http://127.0.0.1:1/deploy?…");
+    expect(JSON.stringify(res)).not.toContain("secret");
+    expect(res.ok).toBe(false); // nothing listens on port 1
+    expect(proc.spawned.length).toBe(0);
+  });
+
+  it("refuses a private hook on an instance that does not allow private targets", async () => {
+    const res = await execute("call_hook", {}, { ...URL_ONLY, hookUrl: HOOK });
+    expect(res.ok).toBe(false);
+    expect(res.error).toContain("private or local network");
+    expect(JSON.stringify(res)).not.toContain("secret");
+  });
+
+  it("redactHook keeps the origin and path and drops the query", () => {
+    expect(redactHook("https://api.render.com/deploy/srv-abc?key=xyz")).toBe("https://api.render.com/deploy/srv-abc?…");
+    expect(redactHook("https://example.com/hook")).toBe("https://example.com/hook");
+    expect(redactHook("not a url")).toBe("the deploy hook");
   });
 });

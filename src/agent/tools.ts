@@ -80,6 +80,8 @@ const READ_OPS = OPERATION_NAMES.filter((n) => riskOf(n) === "read");
  */
 const MAX_LOOKS = 10;
 const ACT_OPS = OPERATION_NAMES.filter((n) => riskOf(n) === "reversible" || riskOf(n) === "disruptive");
+/** the reads that take a `url`, and so are gated to the service's own origins */
+const NETWORK_LOOKS = new Set<string>(["http_probe", "tls_expiry", "dns_lookup", "http_headers"]);
 
 /* ── knowing where you are ────────────────────────────────────────── */
 
@@ -96,10 +98,22 @@ export const readIncident = tool({
         host: ctx.service.host,
         repo: ctx.service.repo,
         process: ctx.service.process,
+        // Whether the owner gave this service a deploy hook — never the URL itself, which carries
+        // a key. And whether there is a machine at all: with none, the machine steps do not apply.
+        hasHook: !!ctx.service.hookUrl,
+        networkOnly: !ctx.service.process && !ctx.service.repo && ctx.service.host === "local",
       },
       incident: {
         title: ctx.incident.title,
         symptom: ctx.incident.symptom,
+        // The exact check that failed, with the exact URL it uses. Looking at the site root when the
+        // check was on /health is how a run diagnoses the wrong page.
+        failingCheck: (() => {
+          const p = getProbe(ctx.incident.probeId);
+          if (!p) return null;
+          const spec = JSON.parse(p.spec) as { url?: string };
+          return { label: p.label, kind: p.kind, url: spec.url ?? null };
+        })(),
         openedAt: new Date(ctx.incident.openedAt).toISOString(),
         minutesDown: Math.round((Date.now() - ctx.incident.openedAt) / 60_000),
       },
@@ -137,9 +151,9 @@ export const look = tool({
       };
     }
 
-    // A probe may only be pointed at this service's own addresses. Otherwise "look at a URL"
-    // is a request to fetch anything from wherever Warden happens to be running.
-    if (input.op === "http_probe") {
+    // A network look may only be pointed at this service's own addresses. Otherwise "look at a
+    // URL" is a request to fetch anything from wherever Warden happens to be running.
+    if (NETWORK_LOOKS.has(input.op)) {
       const url = String((input.input as { url?: unknown }).url ?? "");
       if (!ctx.allowedOrigins.some((o) => url.startsWith(o))) {
         return {
@@ -327,6 +341,7 @@ function describeAct(op: string, input: Record<string, unknown>): string {
   if (op === "pm2_start") return `start ${p}`;
   if (op === "redeploy_previous") return `roll ${p} back to the previous build`;
   if (op === "run_tests") return `run the test suite`;
+  if (op === "call_hook") return `call its deploy hook`;
   return op;
 }
 

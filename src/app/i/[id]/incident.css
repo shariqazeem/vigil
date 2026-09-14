@@ -2,10 +2,6 @@
 
 .in { max-width: 900px; margin: 0 auto; padding: var(--s-6) var(--gutter) var(--s-11); }
 
-.in-crumb { margin: 0 0 var(--s-5); }
-.in-crumb a { color: var(--ink-muted); }
-.in-crumb a:hover { color: var(--ink); }
-
 .in-head { margin-bottom: var(--s-5); }
 .in-title { margin: 0 0 var(--s-3); font-size: var(--fs-h2); line-height: var(--lh-h2); letter-spacing: var(--tracking-h2); font-weight: 600; }
 .in-sub { margin: 0; display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
@@ -24,6 +20,20 @@
 .lv-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); margin-bottom: var(--s-4); }
 .lv-empty { margin: 0; padding: var(--s-5); border: 1px dashed var(--border-strong); border-radius: var(--r-lg); color: var(--ink-muted); font-size: var(--fs-small); max-width: var(--measure); }
 .lv-err { margin: var(--s-3) 0 0; color: var(--down); font-size: var(--fs-small); }
+
+/* ── the five stages, above the rows: where the run is, at a glance ── */
+.lv-stages { list-style: none; margin: 0 0 var(--s-5); padding: var(--s-2) var(--s-4); display: flex; flex-wrap: wrap; gap: 0 var(--s-5); border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface); }
+.lv-stage { display: flex; align-items: center; gap: 10px; padding: 9px 0; font-size: var(--fs-small); color: var(--ink-faint); }
+.lv-stage.is-done { color: var(--ink); }
+.lv-stage.is-now { color: var(--ink); font-weight: 560; }
+.lv-stage.is-halt { color: var(--warn); font-weight: 560; }
+.lv-stage-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border-strong); flex: none; display: grid; place-items: center; }
+.lv-stage.is-done .lv-stage-dot { border-color: var(--ok); background: var(--ok); }
+.lv-stage.is-done .lv-stage-dot::after { content: ""; width: 4px; height: 8px; border: solid var(--surface); border-width: 0 2px 2px 0; transform: rotate(45deg) translateY(-1px); }
+.lv-stage.is-now .lv-stage-dot { border-color: var(--accent); animation: lv-stage-pulse 1.3s ease-in-out infinite; }
+.lv-stage.is-halt .lv-stage-dot { border-color: var(--warn); background: var(--warn-soft); }
+@keyframes lv-stage-pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); } 50% { box-shadow: 0 0 0 5px transparent; } }
+@media (prefers-reduced-motion: reduce) { .lv-stage.is-now .lv-stage-dot { animation: none; } }
 
 .lv-rows { list-style: none; margin: 0; padding: 0; position: relative; }
 .lv-rows::before {
@@ -118,9 +128,6 @@
 /* ── sections ─────────────────────────────────────────────────────── */
 
 .in-sec { margin-top: var(--s-9); }
-.in-h2 { margin: 0 0 var(--s-2); font-size: var(--fs-h3); letter-spacing: var(--tracking-h3); font-weight: 600; display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap; }
-.in-count { color: var(--ink-faint); font-weight: 400; }
-.in-lede { margin: 0 0 var(--s-4); color: var(--ink-muted); font-size: var(--fs-small); max-width: var(--measure); }
 
 .in-decisions { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
 .in-decisions li { padding: var(--s-4); }
@@ -177,3 +184,7 @@
 }
 .sp-reach b { color: var(--ink); font-weight: 600; }
 .sp-reach a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+/* inside a table a chip stays on one line; the column gives it room */
+.in-table .chip { white-space: nowrap; }
+.in-table td.in-rule-cell { min-width: 11rem; }

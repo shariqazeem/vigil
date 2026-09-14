@@ -1,0 +1,1 @@
+ALTER TABLE `services` ADD `hook_url` text;

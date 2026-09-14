@@ -54,6 +54,13 @@ export function confineLocal(input: { repo?: string | null; process?: string | n
 export const hasMachine = (s: { host: string; repo?: string | null; process?: string | null }): boolean =>
   !!s.process || !!s.repo || (s.host !== "local" && !!s.host);
 
+/**
+ * Whether there is anything Warden could DO for this service, beyond looking. A machine, or a
+ * deploy hook — the one act a URL-only service can be given.
+ */
+export const canOperate = (s: { host: string; repo?: string | null; process?: string | null; hookUrl?: string | null }): boolean =>
+  hasMachine(s) || !!s.hookUrl;
+
 export interface Stance {
   label: string;
   tone: "unknown" | "warn" | "accent";
@@ -64,6 +71,9 @@ export interface Stance {
  * policy to be about. A card reading "may act" above a page explaining that Warden cannot touch
  * this service is the product contradicting itself, and the card is the half people read.
  */
-export function stanceOf(service: { host: string; repo?: string | null; process?: string | null }, posture: { label: string; tone: Stance["tone"] }): Stance {
-  return hasMachine(service) ? posture : { label: "network only", tone: "unknown" };
+export function stanceOf(
+  service: { host: string; repo?: string | null; process?: string | null; hookUrl?: string | null },
+  posture: { label: string; tone: Stance["tone"] },
+): Stance {
+  return canOperate(service) ? posture : { label: "network only", tone: "unknown" };
 }

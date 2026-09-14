@@ -34,7 +34,7 @@ import { rmSync } from "node:fs";
 import { POST as registerService } from "../services/route";
 import { DELETE as deleteService, PATCH as patchService } from "../services/[id]/route";
 import { POST as addProbeRoute } from "../services/[id]/probes/route";
-import { addService, getService, listProbes, policyOf } from "@/lib/db/warden";
+import { addService, getService, listChannels, listEvents, listProbes, policyOf } from "@/lib/db/warden";
 import { OBSERVE_ONLY } from "@/lib/ops/policy";
 import { encodeOwner } from "@/lib/auth/session";
 
@@ -264,6 +264,52 @@ describe("reaching a machine", () => {
     const id = ((await res.json()) as { id: string }).id;
     expect(getService(id)!.host).toBe("local");
     expect(getService(id)!.sshKey).toBeNull();
+  });
+
+  it("refuses a deploy hook pointed at the cloud metadata service, by field name", async () => {
+    asAnon("anon:owner-6");
+    const res = await registerService(post("http://x/api/services", { name: "Hooked", url: "https://example.com/", hookUrl: "http://169.254.169.254/deploy", posture: "ask" }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ field: "hookUrl" });
+  });
+
+  it("keeps a public deploy hook on the service, and the page never has to show its key", async () => {
+    asAnon("anon:owner-7");
+    const res = await registerService(post("http://x/api/services", { name: "Hooked", url: "https://example.com/", hookUrl: "https://api.render.com/deploy/srv-1?key=abc", posture: "ask" }));
+    expect(res.status).toBe(200);
+    const id = ((await res.json()) as { id: string }).id;
+    expect(getService(id)!.hookUrl).toBe("https://api.render.com/deploy/srv-1?key=abc");
+  });
+
+  it("makes a notify URL the owner's channel, once", async () => {
+    asAnon("anon:owner-8");
+    const body = { name: "Told", url: "https://example.com/", notifyUrl: "https://hooks.slack.com/services/T/B/x", posture: "ask" };
+    expect((await registerService(post("http://x/api/services", body))).status).toBe(200);
+    expect((await registerService(post("http://x/api/services", { ...body, name: "Told again" }))).status).toBe(200);
+    const channels = listChannels("anon:owner-8");
+    expect(channels).toHaveLength(1);
+    expect(channels[0]).toMatchObject({ url: body.notifyUrl, level: "halt", label: "where Warden reaches you" });
+  });
+
+  it("refuses a notify URL inside the network, by field name", async () => {
+    asAnon("anon:owner-9");
+    const res = await registerService(post("http://x/api/services", { name: "Told", url: "https://example.com/", notifyUrl: "http://10.0.0.5/hook", posture: "ask" }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ field: "notifyUrl" });
+  });
+
+  it("lets the owner set and remove a hook afterwards, writing an event that never carries the URL", async () => {
+    asAnon("anon:owner-10");
+    const res = await registerService(post("http://x/api/services", { name: "Later", url: "https://example.com/", posture: "ask" }));
+    const id = ((await res.json()) as { id: string }).id;
+    expect((await patchService(patch(`http://x/api/services/${id}`, { hookUrl: "https://api.railway.app/hook?token=zzz" }), params(id))).status).toBe(200);
+    expect(getService(id)!.hookUrl).toContain("token=zzz");
+    const events = listEvents(id).filter((e) => e.kind === "hook.changed");
+    expect(events).toHaveLength(1);
+    expect(JSON.stringify(events)).not.toContain("zzz");
+    expect((await patchService(patch(`http://x/api/services/${id}`, { hookUrl: "http://169.254.169.254/x" }), params(id))).status).toBe(400);
+    expect((await patchService(patch(`http://x/api/services/${id}`, { hookUrl: null }), params(id))).status).toBe(200);
+    expect(getService(id)!.hookUrl).toBeNull();
   });
 
   it("refuses a service with no way of telling whether it is alright", async () => {

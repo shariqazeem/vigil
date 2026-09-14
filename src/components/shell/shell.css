@@ -113,3 +113,30 @@ html[data-rail="on"] .nw { padding-top: var(--s-6); }
 }
 .rail-alert:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
 .rail-alert-go { margin-left: auto; }
+
+/* ── the ticker: one line of real activity across the top of every app screen ── */
+.wd-ticker {
+  position: sticky; top: 0; z-index: 55;
+  height: 24px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sunk);
+}
+.wd-ticker-track {
+  display: flex;
+  gap: 28px;
+  white-space: nowrap;
+  animation: wd-ticker-scroll 60s linear infinite;
+  will-change: transform;
+}
+.wd-ticker-item { display: inline-flex; align-items: center; gap: 7px; font-size: 10.5px; color: var(--ink-muted); letter-spacing: 0.02em; }
+.wd-ticker-time { color: var(--ink-faint); }
+.wd-ticker-latest { display: none; }
+@keyframes wd-ticker-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .wd-ticker-track { display: none; }
+  .wd-ticker-latest { display: inline-flex; align-items: center; gap: 7px; padding: 0 14px; font-size: 10.5px; color: var(--ink-muted); }
+}
+.wd-ticker + .rail { top: 38px; }

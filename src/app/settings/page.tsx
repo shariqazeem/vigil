@@ -32,8 +32,9 @@ export default async function SettingsPage() {
       <header className="st-head">
         <h1 className="st-h1">Where to reach you.</h1>
         <p className="st-lede">
-          Warden works alone until the decision is yours. When it stops to ask — or acts and the check still fails — it posts to
-          every address here. A Slack or Discord incoming webhook is exactly this, and so is anything you write yourself: it is a
+          Warden works alone until the decision is yours. It posts to every address here when something breaks, when it stops to
+          ask you, and when it acted and the check still fails — and, for addresses set to <em>everything</em>, when it fixed
+          something and proved it. A Slack or Discord incoming webhook is exactly this, and so is anything you write yourself: a
           POST with JSON, and no credential of yours is stored beyond the URL.
         </p>
       </header>
@@ -55,22 +56,26 @@ export default async function SettingsPage() {
         <h2 className="in-h2">What gets sent</h2>
         <ul className="st-when">
           <li>
-            <span className="chip is-warn">stopped to ask you</span>
-            <span>Warden worked out what to do and your policy says the decision is yours. The run is held open until you answer.</span>
+            <span className="chip is-down">something broke</span>
+            <span>A check failed twice in a row, so this is an outage rather than a blip. Warden is already looking into it.</span>
+          </li>
+          <li>
+            <span className="chip is-warn">needs you</span>
+            <span>Warden worked out what to do and your rules say the decision is yours. The run is held open until you answer.</span>
           </li>
           <li>
             <span className="chip is-down">acted, and it is still down</span>
             <span>It did what it was allowed to do and the check it re-ran still fails. It will not call that fixed.</span>
           </li>
           <li>
-            <span className="chip is-down">handing this back</span>
+            <span className="chip is-down">handed back</span>
             <span>It could not find a cause, or nothing it was allowed to do would help.</span>
           </li>
           <li>
-            <span className="chip is-ok">fixed it, and proved it</span>
+            <span className="chip is-ok">fixed</span>
             <span>
               Only to addresses set to <em>everything</em>. Something broke, Warden fixed it, and the check that failed passes
-              again.
+              again — so you read about it in the morning instead of at 3am.
             </span>
           </li>
         </ul>

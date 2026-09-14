@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Policy } from "@/lib/ops/policy";
+import { opWord, riskWord } from "@/lib/words";
 
 /**
  * The parts of a service page you can change.
@@ -118,16 +119,16 @@ export function PolicyEditor({ serviceId, ops, policy: initial }: { serviceId: s
           return (
             <li key={o.name} className={`pe-op card ${forbidden ? "is-locked" : ""}`}>
               <div className="pe-op-l">
-                <p className="pe-op-n mono">
-                  {o.name}
-                  <span className={`chip ${o.risk === "read" ? "is-unknown" : o.risk === "reversible" ? "is-accent" : o.risk === "disruptive" ? "is-warn" : "is-down"}`}>{o.risk}</span>
+                <p className="pe-op-n">
+                  {opWord(o.name)}
+                  <span className={`chip ${o.risk === "read" ? "is-unknown" : o.risk === "reversible" ? "is-accent" : o.risk === "disruptive" ? "is-warn" : "is-down"}`}>{riskWord(o.risk)}</span>
                 </p>
                 <p className="pe-op-d">{o.does}</p>
               </div>
               {forbidden ? (
-                <span className="pe-locked chip is-down">never, under any policy</span>
+                <span className="pe-locked chip is-down">never, whatever your rules say</span>
               ) : (
-                <div className="pe-seg" role="group" aria-label={`what Warden may do with ${o.name}`}>
+                <div className="pe-seg" role="group" aria-label={`whether Warden may ${opWord(o.name)}`}>
                   {STANCE.map((s) => (
                     <button
                       key={s.value}
@@ -155,7 +156,7 @@ export function PolicyEditor({ serviceId, ops, policy: initial }: { serviceId: s
           Undo
         </button>
         <button type="button" className="btn btn-accent btn-sm" onClick={save} disabled={!dirty || busy}>
-          {busy ? "Saving…" : "Save policy"}
+          {busy ? "Saving…" : "Save your rules"}
         </button>
       </div>
     </div>
@@ -291,22 +292,30 @@ export function RetireProbe({ probeId, label }: { probeId: string; label: string
  * decoration: Warden puts it in front of itself while it works, and "nobody can pay us" and
  * "an internal dashboard three people use" earn different care from the same agent.
  */
-export function ServiceDetails({ serviceId, name, matters }: { serviceId: string; name: string; matters: string | null }) {
+export function ServiceDetails({ serviceId, name, matters, hookUrl }: { serviceId: string; name: string; matters: string | null; hookUrl: string | null }) {
   const [n, setN] = useState(name);
   const [m, setM] = useState(matters ?? "");
+  const [h, setH] = useState(hookUrl ?? "");
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const router = useRouter();
-  const dirty = n.trim() !== name || m.trim() !== (matters ?? "");
+  const dirty = n.trim() !== name || m.trim() !== (matters ?? "") || h.trim() !== (hookUrl ?? "");
 
   const save = async () => {
     setBusy(true);
-    await fetch(`/api/services/${serviceId}`, {
+    const res = await fetch(`/api/services/${serviceId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: n.trim(), matters: m.trim() || null }),
+      body: JSON.stringify({ name: n.trim(), matters: m.trim() || null, hookUrl: h.trim() || null }),
     });
     setBusy(false);
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      setError(body.error ?? "Warden could not save that.");
+      return;
+    }
+    setError(null);
     setSaved(true);
     router.refresh();
   };
@@ -321,6 +330,23 @@ export function ServiceDetails({ serviceId, name, matters }: { serviceId: string
         <span className="nw-label">What breaks for a person when this is down</span>
         <input className="nw-in" value={m} onChange={(e) => { setM(e.target.value); setSaved(false); }} maxLength={200} placeholder="Nobody can pay us." />
         <span className="nw-hint">Warden reads this before it decides anything.</span>
+      </label>
+      <label className="nw-field">
+        <span className="nw-label">Deploy or restart hook</span>
+        <input
+          className={`nw-in mono ${error ? "is-bad" : ""}`}
+          value={h}
+          onChange={(e) => { setH(e.target.value); setSaved(false); setError(null); }}
+          maxLength={500}
+          placeholder="https://api.render.com/deploy/srv-…?key=…"
+          inputMode="url"
+        />
+        {error ? <span className="nw-err">{error}</span> : (
+          <span className="nw-hint">
+            A URL that redeploys or restarts this when POSTed — Render, Railway, Vercel and Coolify all issue one. It is the one thing
+            Warden can do for a service it cannot reach. The key in it is never shown again.
+          </span>
+        )}
       </label>
       <div className="sp-adder-go">
         <button type="button" className="btn btn-accent btn-sm" onClick={save} disabled={busy || !dirty || !n.trim()}>

@@ -33,7 +33,7 @@ flowchart LR
   POLICY{{"<b>THE POLICY</b> — per service, written by a human<br/>may → do it · ask → stop and ask · never → refuse<br/><i>plus an action cap and a cooldown</i>"}}:::policy
   CONSOLE == "a human writes it, in the console" ==> POLICY
 
-  CAT[("<b>the catalogue</b> — 17 named operations<br/>zod-validated args, spawned with execFile<br/><i>there is no shell, and no way to compose one</i><br/>4 are forbidden to every policy")]:::src
+  CAT[("<b>the catalogue</b> — 20 named operations<br/>zod-validated args, spawned with execFile<br/><i>there is no shell, and no way to compose one</i><br/>4 are forbidden to every policy")]:::src
 
   INV --> GUARD
   REM --> GUARD

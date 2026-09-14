@@ -19,21 +19,15 @@
 .ac-h-svc { font-weight: 550; flex: none; }
 .ac-h-d { color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.ac-rows { list-style: none; margin: var(--s-4) 0 0; padding: 0; display: grid; gap: var(--s-4); }
-.ac-row { display: grid; grid-template-columns: auto 1fr; gap: var(--s-4); }
-.ac-dot { width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: var(--ink-ghost); flex: none; }
-.ac-row.is-allow .ac-dot { background: var(--accent); }
-.ac-row.is-ask .ac-dot { background: var(--warn); }
-.ac-row.is-refuse .ac-dot { background: var(--down); }
-.ac-body { min-width: 0; }
-.ac-line { margin: 0 0 var(--s-2); display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
-.ac-op { font-weight: 500; }
-.ac-svc { color: var(--ink-muted); font-size: var(--fs-small); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--border-strong); }
-.ac-svc:hover { color: var(--accent); }
-.ac-when { color: var(--ink-ghost); margin-left: auto; flex: none; }
+.ac .tl { margin-top: var(--s-4); }
+.ac .tl-row { align-items: start; padding: var(--s-3) 0; }
+.ac .tl-ic { margin-top: 2px; }
+.ac .tl-t { display: flex; align-items: center; gap: var(--s-3); flex-wrap: wrap; margin-bottom: 2px; }
+.ac-verdict { font-weight: 400; }
+.ac .tl-m { margin-bottom: var(--s-2); }
+.ac .tl-m a:hover { color: var(--accent); }
 .ac-cmd { margin: 0 0 var(--s-2); white-space: pre-wrap; overflow-wrap: anywhere; }
-.ac-why { margin: 0 0 var(--s-2); color: var(--ink-muted); font-size: var(--fs-small); display: flex; gap: var(--s-3); align-items: baseline; }
-.ac-why .micro { flex: none; color: var(--ink-faint); }
+.ac-why { margin: 0 0 var(--s-2); color: var(--ink-muted); font-size: var(--fs-small); max-width: var(--measure); }
 /* pm2 tables and git logs have long runs with no spaces in them, so pre-wrap alone leaves the text
    clipped at the edge of the card with no way to read the rest. Break anywhere, and scroll down
    rather than sideways. */
@@ -42,6 +36,5 @@
 .ac-inc:hover { color: var(--accent); }
 
 @media (max-width: 560px) {
-  .ac-when { margin-left: 0; }
   .ac-h-d { display: none; }
 }

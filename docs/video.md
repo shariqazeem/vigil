@@ -97,7 +97,7 @@ skip it to save time; cut from beat 8 instead.
 > And it is not only mine. A URL is a whole registration — that is the sign-up, there is no account
 > and no email, a signed cookie makes it yours.
 
-**DO** Scroll straight to *What it may do here*. Slow pan down the list of seventeen operations. Stop
+**DO** Scroll straight to *What it may do here*. Slow pan down the list of twenty actions. Stop
 on `redeploy_previous` and read the sentence next to it. Then click **Never** on it, and watch the
 save bar rise from the bottom of the screen. Press **Save policy**.
 
@@ -215,7 +215,7 @@ checkout*. Then stop on the last line of the page.
 > run it yourself; that is the point of the column.
 >
 > Warden has no shell. It cannot compose a command. It picks an operation by name from a fixed list
-> of seventeen, the arguments are validated, and it is spawned without a shell — so a semicolon in an
+> of twenty, the arguments are validated, and it is spawned without a shell — so a semicolon in an
 > argument is a semicolon, not a second command.
 >
 > Look at this row. It tried to read the pm2 error log, which lives outside the service's checkout,
