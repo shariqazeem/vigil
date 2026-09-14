@@ -59,7 +59,9 @@ export function BreakIt({ name }: { name: string }) {
       <p className="bk-b">
         So break it. This really runs <code className="mono">pm2 stop {name.toLowerCase()}</code> on the machine — the same command a
         person would type, not a simulation and not a seeded row. Warden&rsquo;s own checks then notice, an incident opens, and you
-        watch it investigate, decide what its policy allows, act, and re-run the check that failed.
+        watch it investigate and commit to a cause. What happens next is not its decision: the policy for this service either lets
+        it act — in which case it acts, re-runs the check that failed, and closes the incident on the reading — or stops the run and
+        asks you, in which case the button to answer is right there and the run picks up from where it stopped.
       </p>
 
       {!armed && !busy ? (

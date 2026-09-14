@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { allServices, listEvents, logEvent, openIncidents, targetOf } from "@/lib/db/warden";
+import { allServices, listEvents, logEvent, openIncidents, policyOf, targetOf } from "@/lib/db/warden";
 import { breakableService } from "@/lib/demo-break";
 import { sweepService, type SweepEmit } from "@/lib/ops/sweep";
 
@@ -28,7 +28,18 @@ export const maxDuration = 300;
  *   Stopping is NOT one of Warden's operations and is not reachable from the catalogue. Warden
  *   cannot stop anything; this is the room's hand on the switch, not the agent's.
  */
-const COOLDOWN_MINUTES = 8;
+/**
+ * How long between breakages — and it is deliberately derived from the service's own policy rather
+ * than being a second constant that has to be remembered alongside it.
+ *
+ * If a visitor can break the service again sooner than Warden is allowed to act on it, then every
+ * press produces a halt on `cooldown` instead of a fix: the agent works out exactly what to do, the
+ * policy says "you acted a moment ago, this one is yours", and the run stops holding a question the
+ * visitor has no context for. That is a real and correct policy decision, and it is the wrong first
+ * impression — so the button is always the slower of the two.
+ */
+const MINIMUM_MINUTES = 8;
+const breakCooldown = (policyCooldown: number) => Math.max(MINIMUM_MINUTES, policyCooldown + 2);
 
 const breakable = () => breakableService(process.env.WARDEN_DEMO_BREAKABLE, allServices());
 
@@ -58,11 +69,12 @@ export async function GET() {
           send({ kind: "error", message: "This Warden has no service set aside to be broken on purpose." });
           return;
         }
+        const wait = breakCooldown(policyOf(service).cooldownMinutes);
         const since = minutesSinceLastBreak(service.id);
-        if (since !== null && since < COOLDOWN_MINUTES) {
+        if (since !== null && since < wait) {
           send({
             kind: "error",
-            message: `${service.name} was broken ${Math.round(since)} minute${Math.round(since) === 1 ? "" : "s"} ago and is still settling. Try again in ${Math.ceil(COOLDOWN_MINUTES - since)}.`,
+            message: `${service.name} was broken ${Math.round(since)} minute${Math.round(since) === 1 ? "" : "s"} ago and is still settling. Try again in ${Math.ceil(wait - since)}.`,
           });
           return;
         }
@@ -71,9 +83,32 @@ export async function GET() {
           return;
         }
 
-        send({ kind: "note", message: `Stopping ${service.name} on ${service.host}. This is the real process, not a simulation.` });
         const t = targetOf(service);
-        await run("ssh", ["-i", t.sshKey!, "-o", "StrictHostKeyChecking=no", "-o", "BatchMode=yes", t.host, "--", "pm2", "stop", service.process!], { timeout: 60_000 });
+        const local = t.host === "local" || !t.host;
+        send({
+          kind: "note",
+          message: `Stopping ${service.name}${local ? " on this machine" : ` on ${t.host}`}. This is the real process, not a simulation.`,
+        });
+        // The same shape the catalogue uses: a local target is spawned directly, a remote one over
+        // ssh with argv — never a shell string, even here, where the arguments are not a model's.
+        await (local
+          ? run("pm2", ["stop", service.process!], { timeout: 60_000 })
+          : run(
+              "ssh",
+              [
+                ...(t.sshKey ? ["-i", t.sshKey] : []),
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=10",
+                t.host,
+                "--",
+                `pm2 stop ${JSON.stringify(service.process!)}`,
+              ],
+              { timeout: 60_000 },
+            ));
         logEvent(service.id, "human", "demo.broken", `A visitor stopped ${service.process} on purpose to watch Warden find it.`);
 
         send({ kind: "note", message: "Stopped. Now asking Warden's own checks, the same ones the cron asks every ten minutes." });
