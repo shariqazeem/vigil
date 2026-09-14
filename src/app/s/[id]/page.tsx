@@ -140,6 +140,16 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
         {mine ? <ProbeAdder serviceId={service.id} hasProcess={!!service.process} /> : null}
       </section>
 
+      {mine && service.host === "local" && !service.process ? (
+        <p className="sp-reach">
+          <b>Warden can see this one but cannot touch it.</b> It is watched over http, so it knows when the URL stops answering and
+          nothing more — no logs, no process table, no recent commits, and nothing it could do about any of them. To let it act, it
+          needs a machine it can reach: an ssh destination and a key, set up by whoever runs this Warden
+          (<code className="mono">WARDEN_SSH_KEYS</code>), then registered here. Until then the policy below is real but most of it
+          has nothing to act on.
+        </p>
+      ) : null}
+
       <section className="sp-sec">
         <h2 className="in-h2">What it may do here</h2>
         <p className="in-lede">

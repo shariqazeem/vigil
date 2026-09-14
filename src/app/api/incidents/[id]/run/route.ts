@@ -24,7 +24,7 @@ const running = new Set<string>();
  * a real agent work" is the demo, so it should not also be a way to run the budget down. Past the
  * ceiling the incident is still open, still readable, and still there tomorrow.
  */
-const DAILY = Number(process.env.WARDEN_AUTO_HANDLE_DAILY ?? 40);
+const DAILY = Number(process.env.WARDEN_AUTO_HANDLE_DAILY ?? 100);
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;

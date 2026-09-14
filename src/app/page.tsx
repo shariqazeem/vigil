@@ -3,6 +3,8 @@ import { currentOwner } from "@/lib/auth/session";
 import { allServices, listIncidents, listProbes, listServices, openIncidents, pendingDecisions, policyOf, readingsFor } from "@/lib/db/warden";
 import { POSTURE_WORDS, posture } from "@/lib/ops/policy";
 import type { Service } from "@/lib/db/schema";
+import { BreakIt } from "@/components/break-it";
+import { breakableService } from "@/lib/demo-break";
 import { CheckNow } from "@/components/check-now";
 import { chipClass, statusChip } from "@/lib/incident-status";
 import "./home.css";
@@ -27,6 +29,7 @@ export default async function Console() {
   const demo = allServices().filter((s) => s.ownerKey === "demo");
   const visible = [...mine, ...demo];
   const waiting = pendingDecisions().filter((d) => visible.some((s) => s.id === d.serviceId));
+  const open = openIncidents().filter((i) => visible.some((s) => s.id === i.serviceId));
 
   const fleet = mine.length ? mine : demo;
   const looks = fleet.reduce((n, s) => n + listProbes(s.id).reduce((m, p) => m + readingsFor(p.id, 200).length, 0), 0);
@@ -35,6 +38,11 @@ export default async function Console() {
   // Deliberately not an uptime percentage. The public fleet is broken on purpose several times a day
   // to test the operator, so a "% clean" figure would say more about the testing than the software.
   const medianDown = median(fixed.map((i) => i.downSeconds ?? 0).filter(Boolean));
+
+  // The one service an operator has set aside to be broken on purpose, if any. Offered only while
+  // the fleet is quiet: a visitor arriving mid-incident already has the interesting thing to watch.
+  const breakable = breakableService(process.env.WARDEN_DEMO_BREAKABLE, demo);
+  const canBreak = breakable && open.length === 0 && waiting.length === 0 && openIncidents(breakable.id).length === 0;
 
   return (
     <main className="hm">
@@ -72,6 +80,8 @@ export default async function Console() {
           })}
         </section>
       ) : null}
+
+      {canBreak && breakable ? <BreakIt name={breakable.name} /> : null}
 
       {mine.length ? (
         <section className="hm-fleet">

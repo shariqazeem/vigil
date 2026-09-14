@@ -28,11 +28,13 @@ export function Live({
   open,
   canRun,
   resolved,
+  autoStart = false,
 }: {
   incidentId: string;
   open: OpenQuestion | null;
   canRun: boolean;
   resolved: boolean;
+  autoStart?: boolean;
 }) {
   const [events, setEvents] = useState<WardenEmit[]>([]);
   const [phase, setPhase] = useState<Phase>(open ? "halted" : resolved ? "done" : "idle");
@@ -73,6 +75,14 @@ export function Live({
     },
     [close, incidentId, router],
   );
+
+  // Started once, and only once: a re-render must not open a second stream on the same incident.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!autoStart || started.current || !canRun) return;
+    started.current = true;
+    connect("");
+  }, [autoStart, canRun, connect]);
 
   const answer = (value: string) => {
     if (!open) return;

@@ -393,7 +393,7 @@ commit while explicitly declining to blame it. That is the tone the product is b
 - **Notifications go one way.** Warden posts to a webhook. It does not know whether a human read it,
   it does not retry a failed delivery, and it has no escalation after the first message — the record
   of the attempt on `/settings` is the whole story.
-- **The unattended runs are capped at 40 per owner per day** (`WARDEN_AUTO_HANDLE_DAILY`). Past
+- **The unattended runs are capped at 100 per owner per day** (`WARDEN_AUTO_HANDLE_DAILY`). Past
   that the incident still opens and still waits on the board with a button; only the part that
   happens while nobody is looking stops. This exists because the console lets anyone register a URL,
   and a URL that is always down would otherwise spend the model budget forever.

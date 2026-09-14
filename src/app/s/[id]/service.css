@@ -175,3 +175,18 @@
 
 .sp-details { padding: var(--s-5); display: grid; gap: var(--s-4); margin-bottom: var(--s-4); }
 .sp-saved { font-size: var(--fs-mono); color: var(--ok); align-self: center; }
+
+/* Said once, where a person would otherwise wonder why nothing ever happens. */
+.sp-reach {
+  margin: var(--s-6) 0 0;
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-sunk);
+  color: var(--ink-muted);
+  font-size: var(--fs-small);
+  line-height: 1.6;
+  max-width: 72ch;
+}
+.sp-reach b { color: var(--ink); font-weight: 600; }
+.sp-reach code { background: var(--surface); padding: 2px 5px; border-radius: var(--r-sm); }

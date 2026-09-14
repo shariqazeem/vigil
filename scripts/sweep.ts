@@ -18,7 +18,7 @@ const AUTO = process.env.WARDEN_AUTO_HANDLE !== "0";
  * limit — a bound on what a URL that is always down can cost. Past it, the incident still opens and
  * still sits on the board with a "Hand it to Warden" button; only the unattended part stops.
  */
-const DAILY = Number(process.env.WARDEN_AUTO_HANDLE_DAILY ?? 40);
+const DAILY = Number(process.env.WARDEN_AUTO_HANDLE_DAILY ?? 100);
 const stamp = () => new Date().toISOString().replace("T", " ").slice(0, 19);
 
 async function main() {

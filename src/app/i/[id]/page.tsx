@@ -15,8 +15,11 @@ export const dynamic = "force-dynamic";
  * The audit table is the point of this page. Anyone can say an agent fixed something; this shows
  * the argv, the exit code and the sentence from the policy that permitted it.
  */
-export default async function IncidentPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function IncidentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params;
+  // Arriving straight from "break it and watch": start the run rather than making somebody who
+  // just broke something on purpose press a second button to find out what happened.
+  const auto = "go" in (await searchParams);
   const incident = getIncident(id);
   if (!incident) notFound();
   const service = getService(incident.serviceId);
@@ -69,7 +72,7 @@ export default async function IncidentPage({ params }: { params: Promise<{ id: s
         </div>
       ) : null}
 
-      <Live incidentId={id} open={question} canRun={!resolved} resolved={resolved} />
+      <Live incidentId={id} open={question} canRun={!resolved} resolved={resolved} autoStart={auto && !resolved && !question} />
 
       {incident.resolution ? (
         <p className={`in-outcome ${resolved ? "is-ok" : "is-warn"}`}>{incident.resolution}</p>
