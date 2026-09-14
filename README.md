@@ -69,7 +69,7 @@ behind both.
 ```bash
 npm install --legacy-peer-deps
 npx vitest run
-# 17 files, 272 tests, ~1s
+# 17 files, 278 tests, ~1s
 
 npx vitest run src/agent/__tests__/gates.test.ts
 # the red team: a jailbroken sequence pushed through the real hooks and the real tools
@@ -363,7 +363,7 @@ throws, so after each attempt the test asserts *nothing was spawned*, *nothing l
 legitimate look, a diagnosis, an allowed restart — which does run and does write, because a
 red-team test that passes against a broken harness proves nothing.
 
-The whole suite is 272 tests across 17 files, about a second, fully offline: no network, no model,
+The whole suite is 278 tests across 17 files, about a second, fully offline: no network, no model,
 no process spawned.
 
 ## How it knows it worked
@@ -455,6 +455,10 @@ be careful, the path check. That is the tone the product is built for.
   that the incident still opens and still waits on the board with a button; only the part that
   happens while nobody is looking stops. This exists because the console lets anyone register a URL,
   and a URL that is always down would otherwise spend the model budget forever.
+- **And the instance holds 300 services in total** (`WARDEN_MAX_SERVICES`), not 25 per owner. The
+  per-owner limit bounds nothing by itself: an identity here is a cookie the register route mints on
+  demand, so anyone willing to discard cookies has as many owners as they like, and every service is
+  probes running on a clock forever against somebody else's addresses from this machine.
 - **Bedrock is wired but not what runs live.** Stated again here because it is the kind of thing a
   README is tempted to blur. What you can check without taking anyone's word for it is
   `npx vitest run src/agent/__tests__/model.test.ts`: it sets `BEDROCK_MODEL_ID` and asserts the

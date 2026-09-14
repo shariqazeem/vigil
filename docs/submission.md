@@ -148,7 +148,7 @@ product can show you the line — and `decide()` refuses forbidden risk before i
 at all, so no policy can grant them.
 
 The sweep is pm2 cron every ten minutes; the console is Next.js with the run streaming over SSE; the
-ledger is SQLite through drizzle. 272 tests across 17 files, about a second, fully offline.
+ledger is SQLite through drizzle. 278 tests across 17 files, about a second, fully offline.
 
 ## Challenges I ran into
 

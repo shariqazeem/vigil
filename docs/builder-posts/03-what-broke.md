@@ -315,7 +315,7 @@ have caught it was drawn against an assumption — "whoever chooses this path al
 here" — that stopped being true the moment a browser could reach the same code, and assumptions do
 not re-derive themselves when you move them.
 
-The whole suite is 272 tests across 17 files, about a second, fully offline — no network, no model,
+The whole suite is 278 tests across 17 files, about a second, fully offline — no network, no model,
 no process spawned. Bugs 5 and 6 came out of writing it, and four of the tests exist only because
 bug 8 did. That is a good rate of return for a morning.
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { addProbe, addService, listServices } from "@/lib/db/warden";
+import { addProbe, addService, allServices, listServices } from "@/lib/db/warden";
 import { ASK_BEFORE_ACTING, DEFAULT_POLICY, OBSERVE_ONLY } from "@/lib/ops/policy";
 import { sshKeyPath } from "@/lib/ops/hosts";
 import { checkHost, checkProbeUrl } from "@/lib/net/targets";
@@ -22,6 +22,13 @@ export const dynamic = "force-dynamic";
  * actually permits before they widen it.
  */
 const MAX_PER_OWNER = 25;
+/**
+ * And a ceiling across everybody, because the per-owner one bounds nothing on its own: an identity
+ * here is a cookie this route mints on demand, so anyone willing to discard cookies has as many
+ * owners as they like. Each service is probes running on a clock forever, against somebody else's
+ * addresses, from this machine. One VM's worth is a few hundred.
+ */
+const maxTotal = () => Number(process.env.WARDEN_MAX_SERVICES ?? 300);
 
 const Body = z.object({
   name: z.string().trim().min(1).max(60),
@@ -48,6 +55,13 @@ export async function POST(req: Request) {
     return no(first?.message ?? "That is not a service Warden can register.", 400, String(first?.path[0] ?? ""));
   }
   const b = parsed.data;
+
+  if (allServices().length >= maxTotal()) {
+    return no(
+      "This Warden is full — it is one machine, and every service on it is checks running on a clock. Run your own: it is MIT and the readme is a page long.",
+      503,
+    );
+  }
 
   const fresh = await ownerForWrite();
   if (listServices(fresh.owner.key).length >= MAX_PER_OWNER) {

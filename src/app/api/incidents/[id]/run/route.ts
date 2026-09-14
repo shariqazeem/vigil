@@ -24,7 +24,7 @@ const running = new Set<string>();
  * a real agent work" is the demo, so it should not also be a way to run the budget down. Past the
  * ceiling the incident is still open, still readable, and still there tomorrow.
  */
-const DAILY = Number(process.env.WARDEN_AUTO_HANDLE_DAILY ?? 100);
+const daily = () => Number(process.env.WARDEN_AUTO_HANDLE_DAILY ?? 100);
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -60,7 +60,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         // holding a question, the person is standing there, and refusing to accept their answer
         // would strand work that has already been paid for.
         const used = mode === "resume" ? 0 : autoRunsToday(service.ownerKey);
-        if (used >= DAILY) {
+        if (used >= daily()) {
           send({
             kind: "error",
             message: `Warden has worked ${used} incidents for this fleet in the last day, which is the ceiling. This one stays open and can be handled tomorrow — or run it yourself from a checkout, where the ceiling is yours to set.`,

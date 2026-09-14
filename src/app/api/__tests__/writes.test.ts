@@ -137,6 +137,23 @@ describe("what a policy can be made to say", () => {
   });
 });
 
+describe("how many services one Warden will hold", () => {
+  it("refuses past the global ceiling, because an identity is a cookie it mints on demand", async () => {
+    // The per-owner cap bounds nothing on its own: discard the cookie and you are a new owner.
+    process.env.WARDEN_MAX_SERVICES = "1";
+    asAnon("anon:first");
+    const first = await registerService(post("http://x/api/services", { name: "one", url: "https://example.com/", posture: "observe" }));
+    // There is already a service in this database (SAGE), so even the first is over a ceiling of 1.
+    expect(first.status).toBe(503);
+    expect(((await first.json()) as { error: string }).error).toContain("full");
+
+    // and a fresh identity does not get around it
+    asAnon("anon:second");
+    expect((await registerService(post("http://x/api/services", { name: "two", url: "https://example.com/", posture: "observe" }))).status).toBe(503);
+    delete process.env.WARDEN_MAX_SERVICES;
+  });
+});
+
 describe("the machine Warden itself is running on", () => {
   /**
    * The hole this closes, which was open on the live instance for about an hour.
