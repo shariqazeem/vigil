@@ -1,5 +1,11 @@
 # Warden — demo video script
 
+> **If you run out of time, there is already a submittable video.** `node scripts/shoot.mjs` films
+> production, then `node scripts/cut.mjs` stitches it into `var/shots/warden-demo.mp4` — 2:59,
+> captioned, no narration, every frame a recording of the live instance. It is insurance, not the
+> deliverable: a person talking over their own product is always better, and the script below is for
+> that film. But a silent honest three minutes beats no video at all.
+
 Screen recording with voiceover. **Target 4:52, hard ceiling 5:00.** A short cut ends at
 **2:30** — see [The 2:30 cut](#the-230-cut).
 
