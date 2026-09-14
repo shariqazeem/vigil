@@ -111,7 +111,9 @@ export function Live({
         </p>
       ) : null}
 
-      {events.length === 0 && phase !== "idle" && phase !== "working" ? (
+      {/* Only for a run that is over. A halted one has its question below, which is the opposite of
+          nothing to watch. */}
+      {events.length === 0 && phase === "done" ? (
         <p className="lv-empty">
           This one was worked before you opened the page, so there is nothing to watch live. Everything it did is in{" "}
           <b>Everything it ran</b> below, with the exact command and the rule that permitted each one — that table is the record,
