@@ -1,6 +1,7 @@
-import { AfterInvocationEvent, Agent, InterruptResponseContent, SessionManager, type AgentResult } from "@strands-agents/sdk";
+import { AfterInvocationEvent, Agent, InterruptResponseContent, SessionManager, SlidingWindowConversationManager, type AgentResult } from "@strands-agents/sdk";
 import { Graph, BeforeNodeCallEvent, NodeResultEvent, type MultiAgentStreamEvent } from "@strands-agents/sdk/multiagent";
 import { LocalFileStorage } from "@strands-agents/sdk/storage";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import {
   addStanding,
@@ -44,6 +45,25 @@ import { act, giveUp, listTried, look, readIncident, recordDiagnosis } from "./t
 const SESSIONS = process.env.WARDEN_SESSION_DIR ?? join(process.cwd(), "var", "sessions");
 const sessionIdFor = (incidentId: string) => `inc-${incidentId.toLowerCase().replace(/[^a-z0-9_-]/g, "-")}`;
 
+/**
+ * The session exists so a run that STOPS to ask a human can be picked back up hours later with the
+ * conversation intact. It must not survive into a fresh attempt at the same incident: an agent that
+ * reads its own earlier "I could not do anything here" simply says it again, which is exactly what
+ * happened the first time this was built.
+ */
+function forgetSession(incidentId: string): void {
+  const id = sessionIdFor(incidentId);
+  // LocalFileStorage nests its snapshots under a `session/` directory; clear both spellings so
+  // this keeps working if that layout changes.
+  for (const dir of [join(SESSIONS, "session", id), join(SESSIONS, id)]) {
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* a session that will not delete is not a reason to refuse to start */
+    }
+  }
+}
+
 const INVESTIGATE_PROMPT = `You are Warden, investigating one failure on one service, at an hour when nobody is awake.
 
 Call read_incident first. It tells you what failed, what you may do here, and everything already tried.
@@ -59,6 +79,12 @@ service is down while you read, so go in this order and stop as soon as you can 
 
 Never go fishing through a codebase. Reading twelve files you had no reason to open is how an
 investigation takes five minutes and arrives nowhere.
+
+One trap worth naming, because it has caught this agent before: pm2's restart count is CUMULATIVE
+since the process was added, and an ordinary deploy bumps it. Four restarts is not a crash loop.
+What tells you whether something is looping is "thisCheckOverTime" in read_incident — Warden's own
+record of this exact check — and "lastStartedAt" from pm2. A check that passed forty times and
+started failing four minutes ago is not a long-standing problem.
 
 Two habits that separate a diagnosis from a guess:
   · Line up TIMES. A failure that starts eight minutes after a deploy is about that deploy. One that
@@ -88,7 +114,12 @@ If the evidence does not support any act you are permitted to make, or if what y
 work, call give_up and say plainly what you found, what you tried, and what a human needs to do. An
 honest escalation at 3am is a good night's work. Guessing at someone's production is not.
 
-Never restart something twice hoping for a different answer.`;
+Never restart something twice hoping for a different answer.
+
+One thing worth being plain about, because an earlier version of this agent got it wrong: a process
+that pm2 reports as "stopped" is not crash-looping. It is stopped. If Warden's own history shows the
+check was passing before it stopped, starting it is the smallest correct act and there is nothing
+clever to work out. pm2's cumulative restart count is not evidence against that.`;
 
 const NODE_LABEL: Record<string, string> = {
   investigate: "Looking at it",
@@ -106,6 +137,10 @@ function investigator(incidentId: string): Agent {
     systemPrompt: INVESTIGATE_PROMPT,
     tools: [readIncident, look, recordDiagnosis],
     retryStrategy: retryStrategy(),
+    // Logs and diffs are large, and an investigation that reads six of them will overrun the
+    // context and die mid-thought. The window keeps the brief and the most recent evidence; what
+    // falls out of it is already in the evidence list, which read_incident hands back on demand.
+    conversationManager: new SlidingWindowConversationManager({ windowSize: 16, pinFirst: 1 }),
     plugins: [new WardenGuards(), new Throttled()],
     traceAttributes: { "warden.node": "investigate", "warden.incident_id": incidentId },
     printer: false,
@@ -226,6 +261,7 @@ export async function handleIncident(incidentId: string, emit: (e: WardenEmit) =
     emit,
   });
   ctx.changes = changesMade(incidentId);
+  forgetSession(incidentId);
 
   emit({ kind: "run.start", incidentId, service: service.name, title: incident.title, model: modelLabel() });
   updateIncident(incidentId, { status: "investigating" });

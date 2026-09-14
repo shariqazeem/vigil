@@ -46,12 +46,12 @@ function operationFor(probe: Probe, service: Service): { op: OperationName; inpu
 /** For a process probe, the answer is in the jlist: is the named process online? */
 function readProcess(probe: Probe, data: unknown): { ok: boolean; detail: string } {
   const want = String(parseSpec(probe).process ?? "");
-  const rows = Array.isArray(data) ? (data as { name: string; status: string; restarts: number }[]) : [];
+  const rows = Array.isArray(data) ? (data as { name: string; status: string; restartsSinceAdded: number }[]) : [];
   const row = rows.find((r) => r.name === want);
   if (!row) return { ok: false, detail: `pm2 has no process called "${want}"` };
   return {
     ok: row.status === "online",
-    detail: row.status === "online" ? `online, ${row.restarts} restart${row.restarts === 1 ? "" : "s"} since deploy` : `pm2 says "${row.status}"`,
+    detail: row.status === "online" ? `online, ${row.restartsSinceAdded} restart${row.restartsSinceAdded === 1 ? "" : "s"} since deploy` : `pm2 says "${row.status}"`,
   };
 }
 

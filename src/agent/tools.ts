@@ -1,6 +1,6 @@
 import { ToolStreamEvent, tool, type ToolContext } from "@strands-agents/sdk";
 import { z } from "zod";
-import { changesMade, findDecisionFor, listActions, minutesSinceLastChange, openDecision, recordAction, targetOf, updateIncident } from "@/lib/db/warden";
+import { changesMade, findDecisionFor, getProbe, listActions, minutesSinceLastChange, openDecision, readingsFor, recordAction, targetOf, updateIncident } from "@/lib/db/warden";
 import { catalogue, execute, riskOf, withServiceDefaults, OPERATIONS, OPERATION_NAMES, type OperationName } from "@/lib/ops/operations";
 import { decide, describePolicy } from "@/lib/ops/policy";
 import { contextFor, type IncidentContext } from "./incident-context";
@@ -28,7 +28,7 @@ const ctxOf = (c: ToolContext | undefined): IncidentContext => {
   return contextFor(incidentId);
 };
 
-const summarise = (stdout: string, stderr: string, error?: string, max = 1400): string => {
+const summarise = (stdout: string, stderr: string, error?: string, max = 900): string => {
   const body = [stdout.trim(), stderr.trim()].filter(Boolean).join("\n");
   const text = body || error || "(no output)";
   return text.length > max ? `${text.slice(0, max)}\n… [${text.length - max} more bytes]` : text;
@@ -50,6 +50,25 @@ function prepare(
     return { correction: { rejected: true, error: `Those are not the arguments ${op} takes. Call it again with exactly these.`, takes: spec?.takes ?? {} } };
   }
   return { input: filled };
+}
+
+/** What the failing check has been saying, from Warden's own readings. */
+function history(probeId: string): Record<string, unknown> {
+  const probe = getProbe(probeId);
+  const rs = readingsFor(probeId, 120);
+  if (!rs.length) return { note: "Warden has no history for this check yet — this is the first time it has looked." };
+  const passed = rs.filter((r) => r.ok).length;
+  const firstFailure = [...rs].reverse().find((r, i, arr) => !r.ok && (i === 0 || arr[i - 1]!.ok));
+  const lastPass = rs.find((r) => r.ok);
+  return {
+    check: probe?.label,
+    looks: rs.length,
+    passed,
+    failed: rs.length - passed,
+    startedFailingAt: firstFailure ? new Date(firstFailure.at).toISOString() : null,
+    lastPassedAt: lastPass ? new Date(lastPass.at).toISOString() : null,
+    minutesSinceItLastPassed: lastPass ? Math.round((Date.now() - lastPass.at) / 60_000) : null,
+  };
 }
 
 const READ_OPS = OPERATION_NAMES.filter((n) => riskOf(n) === "read");
@@ -84,6 +103,9 @@ export const readIncident = tool({
         openedAt: new Date(ctx.incident.openedAt).toISOString(),
         minutesDown: Math.round((Date.now() - ctx.incident.openedAt) / 60_000),
       },
+      // Warden's own record of this check. It is the thing that separates "this has been broken
+      // for days" from "this broke four minutes ago", and a cumulative restart count cannot.
+      thisCheckOverTime: history(ctx.incident.probeId),
       policy: describePolicy(ctx.policy),
       standingRules: ctx.standing,
       alreadyLookedAt: ctx.evidence.map((e) => ({ op: e.op, command: e.command, ok: e.ok, summary: e.summary.slice(0, 300) })),
@@ -325,12 +347,15 @@ export const giveUp = tool({
 
 export const listTried = tool({
   name: "list_tried",
-  description: "Everything that has been run on this incident already, with what came back. Read it before acting again — repeating a failed act is not a new idea.",
+  description: "The authoritative record of everything run on this incident. If it shows no acts, none have been attempted — whatever you think you remember. Read it before acting again: repeating a failed act is not a new idea.",
   inputSchema: z.object({}),
   callback: (_input, context) => {
     const ctx = ctxOf(context);
+    const rows = listActions(ctx.incidentId);
+    const acts = rows.filter((a) => a.risk !== "read");
     return {
-      actions: listActions(ctx.incidentId).map((a) => ({
+      summary: acts.length === 0 ? "No act has been attempted on this incident. Nothing has been refused." : `${acts.length} act(s) attempted.`,
+      actions: rows.map((a) => ({
         op: a.op,
         verdict: a.verdict,
         rule: a.rule,

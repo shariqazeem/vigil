@@ -61,8 +61,11 @@ export class WardenGuards implements Plugin {
           return;
         }
 
+        // Keyed by the tool call that made it, so a hook that runs twice for one call — or a
+        // retry of the identical call inside the SDK — cannot make an act trip its own guard.
         const signature = `${op}:${JSON.stringify(input.input ?? {})}`;
-        if (ctx.attempted.has(signature)) {
+        const first = ctx.attempted.get(signature);
+        if (first && first !== e.toolUse.toolUseId) {
           WardenGuards.note("no-second-go", signature);
           e.cancel = `Refused: you have already run ${op} with those arguments on this incident. Doing it again is not a new idea — either try something the evidence supports, or call give_up.`;
           return;
@@ -72,7 +75,7 @@ export class WardenGuards implements Plugin {
           e.cancel = `Refused: ${op} was already refused on this incident. Reaching the same end another way is exactly what Warden must not do. Say so in your report instead.`;
           return;
         }
-        ctx.attempted.add(signature);
+        if (!first) ctx.attempted.set(signature, e.toolUse.toolUseId);
       },
       { order: HookOrder.SDK_FIRST - 1 },
     );
@@ -83,7 +86,9 @@ export class WardenGuards implements Plugin {
       const ctx = passOf(e.invocationState);
       if (!ctx) return;
       const block = e.result?.content?.[0];
-      const text = block && block.type === "textBlock" ? block.text : "";
+      // A tool that returns an object arrives as a jsonBlock, not a textBlock. Read both, or this
+      // rule never arms: every refusal the `act` tool produces is an object.
+      const text = block?.type === "textBlock" ? block.text : block?.type === "jsonBlock" ? JSON.stringify(block.json) : "";
       if (!text.includes('"refused":true')) return;
       const op = String(((e.toolUse.input ?? {}) as { op?: string }).op ?? "");
       if (op) ctx.refused.add(op);

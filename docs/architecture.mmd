@@ -1,69 +1,65 @@
-%% Vigil — how one watch actually runs.
-%% Dotted arrows are CONDITIONAL EDGES: the Strands Graph evaluates the handler at run time and the
-%% node only fires if it returns true. Thick arrows are the interrupt: the run genuinely stops there.
+%% Warden — how one incident is actually handled.
+%% Dotted = a CONDITIONAL EDGE the Strands Graph evaluates at run time.
+%% Thick  = the interrupt: the run genuinely stops there until a human answers.
 %% Render: node scripts/render-diagram.mjs
 flowchart LR
 
-  DROP["A sentence, a photo of a shelf,<br/>or a VIN typed on a phone"]:::drop
-
-  INTAKE["<b>intake</b> · Strands Agent<br/>structuredOutputSchema<br/>must declare what it could NOT read<br/><i>a VIN goes to NHTSA vPIC, not the model</i>"]:::agent
-
-  DROP --> INTAKE --> DB
-
-  subgraph PASS["ONE PASS — a Strands Graph"]
-    direction LR
-    TRIAGE["<b>triage</b><br/>which agency could<br/>possibly know about<br/>each thing"]:::agent
-    VEH["<b>vehicle_watch</b>"]:::agent
-    PRD["<b>product_watch</b>"]:::agent
-    ING["<b>ingestible_watch</b>"]:::agent
-    MATCH["<b>match</b><br/>covers / clear / unsure<br/>one verdict per record"]:::agent
-    TRIAGE -. "planned a vehicle" .-> VEH
-    TRIAGE -. "planned a product" .-> PRD
-    TRIAGE -. "planned an ingestible" .-> ING
-    VEH -. "something came back" .-> MATCH
-    PRD -. "something came back" .-> MATCH
-    ING -. "something came back" .-> MATCH
+  subgraph SWEEP["THE SWEEP · pm2 cron, every 10 min, no model"]
+    direction TB
+    PROBE["probe a service<br/><i>http · process</i>"]:::code
+    READ[("readings<br/><i>every answer, including<br/>the boring ones</i>")]:::store
+    OPEN{"failed twice<br/>in a row?"}:::gate
+    PROBE --> READ --> OPEN
   end
 
-  DB --> TRIAGE
+  OPEN -. "no — nothing to say" .-> QUIET(["it has been fine"]):::quiet
+  OPEN == "yes" ==> INC[("incident opened")]:::store
 
-  GUARD{{"<b>six refusals on the tool boundary</b><br/>BeforeToolCallEvent hook +<br/>NothingLeavesTheHouse intervention<br/><i>no invented records · no alarm on a hunch ·<br/>no clearing a brand match · no unchecked window ·<br/>severity must be evidenced · one verdict per record</i>"}}:::gate
+  subgraph GRAPH["ONE INCIDENT · a Strands Graph"]
+    direction LR
+    INV["<b>investigate</b><br/>read_incident, look ×10<br/>commits to a cause<br/>and a confidence"]:::agent
+    REM["<b>remedy</b><br/>chooses the SMALLEST act<br/>the diagnosis supports"]:::agent
+    INV -. "diagnosis recorded<br/>AND confidence ≥ 0.5" .-> REM
+  end
 
-  SRC[("<b>NHTSA</b> recalls + complaints<br/><b>CPSC</b> product recalls<br/><b>openFDA</b> enforcement<br/><i>every call records a check<br/>before the agent sees a row</i>")]:::src
+  INC --> INV
 
-  VEH --> GUARD
-  PRD --> GUARD
-  ING --> GUARD
-  MATCH --> GUARD
-  GUARD --> SRC
-  SRC --> DB
+  GUARD{{"<b>four rules no policy can switch off</b><br/>no operation that does not exist ·<br/>no acting before diagnosing ·<br/>no second go at the same act ·<br/>no acting past a refusal"}}:::gate
 
-  GATES["<b>the completeness gates</b> · plain code<br/>closeTheGaps — asks any source triage<br/>promised and the lanes never asked<br/>closeTheVerdicts — re-sends any record<br/>fetched but never ruled on<br/><i>the agent chooses how to look;<br/>the code guarantees that it looked</i>"]:::code
+  POLICY{{"<b>THE POLICY</b> — per service, written by a human<br/>may → do it · ask → stop and ask · never → refuse<br/><i>plus an action cap and a cooldown</i>"}}:::policy
 
-  MATCH --> GATES
+  CAT[("<b>the catalogue</b> — 16 named operations<br/>zod-validated args, spawned with execFile<br/><i>there is no shell, and no way to compose one</i><br/>4 are forbidden to every policy")]:::src
 
-  ADJ["<b>adjudicator</b> · one agent, one tool<br/>AfterInvocationEvent.resume makes it<br/>impossible to end a turn without asking"]:::agent
-  GATES --> ADJ
+  INV --> GUARD
+  REM --> GUARD
+  GUARD --> POLICY
+  POLICY -- "allow" --> CAT
+  POLICY -- "refuse" --> SAID(["refused, and the rule is named"]):::quiet
 
-  HUMAN(["<b>the person whose house it is</b><br/>answers one yes/no question"]):::human
-  ADJ ==> |"context.interrupt()<br/><b>stopReason: interrupt</b>"| HUMAN
-  HUMAN ==> |"InterruptResponseContent<br/>hours later, another process"| ADJ
-  FREEZE[("passes.context — the run's own state, frozen")]:::code
-  ADJ -.-> FREEZE
-  FREEZE -.-> ADJ
+  HUMAN(["<b>a human</b><br/>approves, or does not"]):::human
+  POLICY == "ask · context.interrupt()<br/><b>stopReason: interrupt</b>" ==> HUMAN
+  HUMAN == "InterruptResponseContent<br/>hours later, another process" ==> REM
+  REM -.-> SESS[("the session, on disk")]:::code
+  SESS -.-> REM
 
-  BRIEF["<b>brief</b> · two sentences,<br/>only about findings that exist"]:::agent
-  ADJ --> BRIEF --> DB
+  CAT --> SYS(["the running service"]):::src
 
-  DB[("<b>SQLite ledger</b><br/>things · passes · checks<br/>findings · decisions<br/>standing rules · events")]:::store
+  VERIFY["<b>re-run the check that failed</b><br/><i>code, not a model</i>"]:::code
+  CAT --> VERIFY
+  VERIFY -- "clean" --> FIXED(["resolved · the reading is the proof"]):::ok
+  VERIFY -- "still failing" --> ESC(["escalated · Warden does not claim a fix"]):::quiet
 
-  BOARD["<b>the board</b> · SSE, live<br/>every frame is a fold of real events<br/>a replay is always labelled a replay"]:::store
-  DB --> BOARD
+  AUDIT[("<b>every call, with the rule that permitted it</b><br/>op · risk · verdict · argv · exit code · ms")]:::store
+  GUARD --> AUDIT
+  POLICY --> AUDIT
+  VERIFY --> AUDIT
 
-  classDef agent fill:#eef2ff,stroke:#4353a8,stroke-width:1.5px,color:#0f172a;
-  classDef code fill:#f6f7fb,stroke:#64748b,stroke-width:1.5px,color:#0f172a;
-  classDef gate fill:#fff6e8,stroke:#b45309,stroke-width:2px,color:#0f172a;
-  classDef store fill:#f0fdf4,stroke:#15803d,stroke-width:1.5px,color:#0f172a;
-  classDef src fill:#ecfeff,stroke:#0e7490,stroke-width:1.5px,color:#0f172a;
-  classDef human fill:#fee2e2,stroke:#b91c1c,stroke-width:2.5px,color:#0f172a;
-  classDef drop fill:#fffbeb,stroke:#a16207,stroke-width:1.5px,color:#0f172a;
+  classDef agent fill:#eeeefb,stroke:#3f3cbb,stroke-width:1.5px,color:#14161a;
+  classDef code fill:#f4f5f7,stroke:#5a616c,stroke-width:1.5px,color:#14161a;
+  classDef gate fill:#fdf3e7,stroke:#a8620a,stroke-width:1.5px,color:#14161a;
+  classDef policy fill:#fdf3e7,stroke:#a8620a,stroke-width:2.5px,color:#14161a;
+  classDef store fill:#eaf6f0,stroke:#0f7a4d,stroke-width:1.5px,color:#14161a;
+  classDef src fill:#eef7fb,stroke:#0e7490,stroke-width:1.5px,color:#14161a;
+  classDef human fill:#fdeded,stroke:#c22a2a,stroke-width:2.5px,color:#14161a;
+  classDef ok fill:#eaf6f0,stroke:#0f7a4d,stroke-width:2.5px,color:#14161a;
+  classDef quiet fill:#ffffff,stroke:#b4bac3,stroke-width:1.2px,color:#5a616c;

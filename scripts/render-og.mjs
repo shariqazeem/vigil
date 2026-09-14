@@ -12,33 +12,36 @@ const { chromium } = req(process.env.PLAYWRIGHT_FROM ?? "/Users/macbookair/proje
 
 const html = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Manrope:wght@400;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0}
-  body{width:1200px;height:630px;background:radial-gradient(120% 90% at 50% -10%,#11203a 0%,#070c16 52%,#05070d 100%);
-       color:#eef2fb;font-family:Manrope,sans-serif;padding:70px;display:flex;flex-direction:column;justify-content:space-between}
-  .brand{display:flex;align-items:center;gap:16px;color:#ffc76b;font-family:'JetBrains Mono',monospace;font-size:20px;letter-spacing:.42em;text-transform:uppercase}
-  .dot{width:11px;height:11px;border-radius:99px;background:#ffc76b;box-shadow:0 0 26px 4px rgba(255,199,107,.55)}
-  h1{font-family:'Instrument Serif',Georgia,serif;font-size:84px;line-height:.98;letter-spacing:-.02em;max-width:900px;font-weight:400}
-  p.l{font-size:26px;line-height:1.45;color:#9aa9c4;max-width:880px;margin-top:22px}
-  .foot{display:flex;align-items:flex-end;justify-content:space-between;gap:40px}
-  .rec{border-left:3px solid #ff6b6b;padding-left:18px;max-width:760px}
-  .rec .id{font-family:'JetBrains Mono',monospace;font-size:18px;color:#ff6b6b;letter-spacing:.06em}
-  .rec .q{font-size:21px;color:#c5d0e4;line-height:1.4;margin-top:7px}
-  .sdk{font-family:'JetBrains Mono',monospace;font-size:17px;color:#5f6d88;text-align:right;white-space:nowrap}
+  body{width:1200px;height:630px;background:#fbfbfc;color:#14161a;font-family:Inter,system-ui,sans-serif;
+       padding:72px;display:flex;flex-direction:column;justify-content:space-between;
+       font-feature-settings:"tnum" 1}
+  .brand{font-family:'JetBrains Mono',monospace;font-size:15px;letter-spacing:.34em;text-transform:uppercase;color:#3f3cbb}
+  h1{font-size:62px;line-height:1.04;letter-spacing:-.035em;font-weight:600;max-width:19ch}
+  p.l{font-size:23px;line-height:1.5;color:#5a616c;max-width:62ch;margin-top:22px;letter-spacing:-.011em}
+  .tl{display:flex;gap:0;align-items:stretch;border:1px solid #e8e9ed;border-radius:14px;overflow:hidden;background:#fff}
+  .step{flex:1;padding:18px 20px;border-right:1px solid #e8e9ed}
+  .step:last-child{border-right:0}
+  .k{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#8b929d}
+  .v{font-size:15px;margin-top:6px;color:#14161a}
+  .step.ok .k{color:#0f7a4d}
+  .step.warn .k{color:#a8620a}
+  .foot{display:flex;justify-content:space-between;align-items:flex-end;font-family:'JetBrains Mono',monospace;font-size:14px;color:#8b929d}
 </style></head><body>
-  <div class="brand"><span class="dot"></span>vigil</div>
+  <div class="brand">Warden</div>
   <div>
-    <h1>Nobody is checking<br/>on your behalf.</h1>
-    <p class="l">An agent that watches the things in your home against live federal safety data, night after night — and wakes you only when one of them becomes dangerous.</p>
+    <h1>Your software should not need you awake to keep running.</h1>
+    <p class="l">An autonomous operator that investigates the thing that broke, fixes what your policy lets it fix, and proves it by re-running the check that failed.</p>
   </div>
-  <div class="foot">
-    <div class="rec">
-      <div class="id">20V314000 · NHTSA safety recall</div>
-      <div class="q">“If the fuel pump fails, the engine can stall while driving, increasing the risk of a crash.”</div>
-    </div>
-    <div class="sdk">Strands Agents SDK<br/>NHTSA · CPSC · openFDA</div>
+  <div class="tl">
+    <div class="step"><div class="k">it notices</div><div class="v">expected 200, got 502</div></div>
+    <div class="step"><div class="k">it looks</div><div class="v">pm2 jlist · pm2 logs · git log</div></div>
+    <div class="step warn"><div class="k">the policy decides</div><div class="v">allow · policy-may</div></div>
+    <div class="step ok"><div class="k">it proves it</div><div class="v">200 in 1423ms — resolved</div></div>
   </div>
+  <div class="foot"><span>Strands Agents SDK · no shell, ever</span><span>github.com/shariqazeem/warden</span></div>
 </body></html>`;
 
 const browser = await chromium.launch();

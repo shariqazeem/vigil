@@ -38,8 +38,9 @@ export interface IncidentContext {
   changes: number;
   /** decisions raised, so the same question is never asked twice */
   asked: { decisionId: string; interruptId: string | null; op: string }[];
-  /** `op:args` signatures already attempted — a second go at the same act is refused */
-  attempted: Set<string>;
+  /** `op:args` signature → the toolUseId that first attempted it. A second, DIFFERENT call with
+   *  the same signature is refused; the call that created the entry is not refused by its own entry. */
+  attempted: Map<string, string>;
   /** operations refused on this incident — they cannot be re-attempted by another route */
   refused: Set<string>;
   /** set when Warden decides it cannot finish this alone */
@@ -71,7 +72,7 @@ export type WardenEmit =
 const live = new Map<string, IncidentContext>();
 
 export function openContext(ctx: Omit<IncidentContext, "evidence" | "diagnosis" | "suspect" | "confidence" | "changes" | "asked" | "gaveUp" | "attempted" | "refused">): IncidentContext {
-  const full: IncidentContext = { ...ctx, evidence: [], diagnosis: null, suspect: null, confidence: null, changes: 0, asked: [], attempted: new Set(), refused: new Set(), gaveUp: null };
+  const full: IncidentContext = { ...ctx, evidence: [], diagnosis: null, suspect: null, confidence: null, changes: 0, asked: [], attempted: new Map(), refused: new Set(), gaveUp: null };
   live.set(ctx.incidentId, full);
   return full;
 }

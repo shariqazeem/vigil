@@ -56,7 +56,8 @@ const NAME = /^[A-Za-z0-9._-]{1,64}$/;
 const REF = /^[A-Za-z0-9._/-]{1,80}$/;
 
 /** A path is only ever accepted relative to the service's own checkout, and never above it. */
-function insideRepo(repo: string, path: string): string {
+/* exported for testing */
+export function insideRepo(repo: string, path: string): string {
   const full = resolve(repo, path);
   const root = resolve(repo);
   if (full !== root && !full.startsWith(root + sep)) throw new Error(`path escapes the service checkout: ${path}`);
@@ -65,6 +66,13 @@ function insideRepo(repo: string, path: string): string {
 
 /** Single-quote for the remote shell. Only used for ssh, where a shell is unavoidable. */
 const shq = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
+
+/**
+ * Where ssh keeps the multiplexed control socket. Deliberately short: a unix socket path is capped
+ * near 104 bytes, and macOS's per-user TMPDIR plus ssh's %C hash sails past it — which fails as
+ * `unix_listener: path too long` on every single call.
+ */
+const SSH_MUX = "/tmp/.wd-%C";
 
 /* ── the catalogue ────────────────────────────────────────────────── */
 
@@ -139,7 +147,7 @@ export const OPERATIONS = {
     describe: () => "pm2 jlist",
     spawn: (_i, t) => {
       const { file, pre } = pm2(t);
-      return { file, args: [...pre, "jlist"], timeout: 20_000, max: 400_000 };
+      return { file, args: [...pre, "jlist"], timeout: 45_000, max: 400_000 };
     },
     parse: (r) => {
       try {
@@ -147,8 +155,10 @@ export const OPERATIONS = {
         return rows.map((a) => ({
           name: a.name,
           status: a.pm2_env.status,
-          restarts: a.pm2_env.restart_time,
-          upSince: a.pm2_env.pm_uptime,
+          // Cumulative since the process was added to pm2 — a deploy bumps it. On its own it is
+          // not evidence of anything; `lastStartedAt` is what says whether it is looping now.
+          restartsSinceAdded: a.pm2_env.restart_time,
+          lastStartedAt: a.pm2_env.pm_uptime ? new Date(a.pm2_env.pm_uptime).toISOString() : null,
           cwd: a.pm2_env.pm_cwd ?? null,
         }));
       } catch {
@@ -162,7 +172,7 @@ export const OPERATIONS = {
     risk: "read",
     input: z.object({
       process: z.string().regex(NAME),
-      lines: z.coerce.number().int().min(10).max(400).default(120),
+      lines: z.coerce.number().int().min(10).max(200).default(80),
       errorsOnly: z.coerce.boolean().default(false),
     }),
     describe: (i) => `pm2 logs ${i.process} --lines ${i.lines}${i.errorsOnly ? " (errors only)" : ""}`,
@@ -171,7 +181,7 @@ export const OPERATIONS = {
       return {
         file,
         args: [...pre, "logs", i.process, "--lines", String(i.lines), "--nostream", ...(i.errorsOnly ? ["--err"] : [])],
-        timeout: 30_000,
+        timeout: 60_000,
         max: 200_000,
       };
     },
@@ -184,7 +194,7 @@ export const OPERATIONS = {
     describe: (i) => `git log -n ${i.count}`,
     spawn: (i, t) => {
       if (!t.repo) throw new Error("this service has no checkout");
-      return { file: "git", args: ["-C", t.repo, "log", "-n", String(i.count), "--format=%h|%ad|%an|%s", "--date=iso-strict"], timeout: 20_000 };
+      return { file: "git", args: ["-C", t.repo, "log", "-n", String(i.count), "--format=%h|%ad|%an|%s", "--date=iso-strict"], timeout: 40_000 };
     },
     parse: (r) =>
       r.stdout
@@ -199,11 +209,11 @@ export const OPERATIONS = {
   git_show: def({
     name: "git_show",
     risk: "read",
-    input: z.object({ ref: z.string().regex(REF), maxBytes: z.coerce.number().int().min(500).max(60_000).default(20_000) }),
+    input: z.object({ ref: z.string().regex(REF), maxBytes: z.coerce.number().int().min(500).max(20_000).default(6_000) }),
     describe: (i) => `git show ${i.ref}`,
     spawn: (i, t) => {
       if (!t.repo) throw new Error("this service has no checkout");
-      return { file: "git", args: ["-C", t.repo, "show", "--stat", "--patch", "--no-color", i.ref], timeout: 25_000, max: i.maxBytes };
+      return { file: "git", args: ["-C", t.repo, "show", "--stat", "--patch", "--no-color", i.ref], timeout: 45_000, max: i.maxBytes };
     },
   }),
 
@@ -215,7 +225,7 @@ export const OPERATIONS = {
     spawn: (i, t) => {
       if (!t.repo) throw new Error("this service has no checkout");
       const full = insideRepo(t.repo, i.path);
-      return { file: "sed", args: ["-n", "1,1200p", full], timeout: 15_000, max: i.maxBytes };
+      return { file: "sed", args: ["-n", "1,1200p", full], timeout: 30_000, max: i.maxBytes };
     },
   }),
 
@@ -232,7 +242,7 @@ export const OPERATIONS = {
       return {
         file: "grep",
         args: ["-rn", "--binary-files=without-match", "--exclude-dir=node_modules", "--exclude-dir=.git", "--exclude-dir=.next", "-m", "40", "-e", i.pattern, where],
-        timeout: 25_000,
+        timeout: 45_000,
         max: i.maxBytes,
       };
     },
@@ -243,7 +253,7 @@ export const OPERATIONS = {
     risk: "read",
     input: z.object({}),
     describe: () => "df -h /",
-    spawn: () => ({ file: "df", args: ["-h", "/"], timeout: 10_000 }),
+    spawn: () => ({ file: "df", args: ["-h", "/"], timeout: 25_000 }),
   }),
 
   /* ── reversible ─────────────────────────────────────────────────── */
@@ -255,7 +265,7 @@ export const OPERATIONS = {
     describe: (i) => `restart ${i.process}`,
     spawn: (i, t) => {
       const { file, pre } = pm2(t);
-      return { file, args: [...pre, "restart", i.process, "--update-env"], timeout: 60_000 };
+      return { file, args: [...pre, "restart", i.process, "--update-env"], timeout: 90_000 };
     },
   }),
 
@@ -266,7 +276,7 @@ export const OPERATIONS = {
     describe: (i) => `start ${i.process}`,
     spawn: (i, t) => {
       const { file, pre } = pm2(t);
-      return { file, args: [...pre, "start", i.process], timeout: 60_000 };
+      return { file, args: [...pre, "start", i.process], timeout: 90_000 };
     },
   }),
 
@@ -386,6 +396,16 @@ export async function execute(name: OperationName, rawInput: unknown, target: Ta
         "StrictHostKeyChecking=no",
         "-o",
         "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        // One connection, reused. An investigation makes a dozen calls in a minute and paying the
+        // handshake each time is most of the wall-clock a person watches.
+        "-o",
+        "ControlMaster=auto",
+        "-o",
+        `ControlPath=${SSH_MUX}`,
+        "-o",
+        "ControlPersist=120",
         target.host,
         "--",
         [plan.file, ...plan.args].map(shq).join(" "),
