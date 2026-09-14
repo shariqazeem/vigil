@@ -163,7 +163,7 @@ await scene("console", async (page) => {
   await sleep(1200);
   await row.getByRole("button", { name: "Never" }).click();
   await sleep(1800);
-  await page.getByRole("button", { name: /save policy/i }).click();
+  await page.getByRole("button", { name: /save your rules/i }).click();
   await sleep(2500);
 
   // And the four nothing can turn on.
