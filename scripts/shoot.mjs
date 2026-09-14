@@ -158,7 +158,7 @@ await scene("console", async (page) => {
   await sleep(1500);
 
   // Set one operation to Never and watch the save bar rise.
-  const row = page.locator(".pe-op", { hasText: "redeploy_previous" });
+  const row = page.locator(".pe-op", { hasText: "roll back" });
   await row.scrollIntoViewIfNeeded();
   await sleep(1200);
   await row.getByRole("button", { name: "Never" }).click();
@@ -213,11 +213,11 @@ await scene("incident", async (page) => {
   await go.first().waitFor({ state: "visible", timeout: 30_000 });
   await page.waitForTimeout(2500);
   await go.first().click();
-  await page.locator(".chip", { hasText: /warden is working/i }).waitFor({ timeout: 30_000 });
+  await page.locator(".chip", { hasText: /working/i }).waitFor({ timeout: 30_000 });
   // The run is minutes: the investigation, the policy decision, the act, the verification.
   for (let i = 0; i < 60; i += 1) {
     await sleep(5000);
-    const done = await page.locator(".chip", { hasText: /finished|waiting on you/i }).count();
+    const done = await page.locator(".chip", { hasText: /done|needs you/i }).count();
     if (done) break;
   }
   await sleep(4000);
