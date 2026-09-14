@@ -172,7 +172,7 @@ export function NewService({ sshKeys, allowsPrivate, allowsLocal, first }: { ssh
       </fieldset>
 
       {/* ── the machine, which is what turns a watch into an operator ── */}
-      <fieldset className="nw-set card">
+      <fieldset className={`nw-set card ${deep ? "" : "is-shut"}`}>
         <legend className="nw-leg">
           <button type="button" className="nw-toggle" onClick={() => setDeep((d) => !d)} aria-expanded={deep}>
             <span className={`nw-caret ${deep ? "is-open" : ""}`} aria-hidden="true" />

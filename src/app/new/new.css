@@ -107,3 +107,7 @@
   .nw-row { grid-template-columns: 1fr; }
   .nw-narrow { max-width: none; }
 }
+
+/* A collapsed fieldset is a line, not an empty box with a caption on it. */
+.nw-set.is-shut { padding: 0 var(--s-5); border-style: dashed; background: none; box-shadow: none; }
+.nw-set.is-shut .nw-leg { margin: 0; padding: var(--s-1) 0; }

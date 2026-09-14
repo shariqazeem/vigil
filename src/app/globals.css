@@ -143,6 +143,10 @@ a { color: inherit; text-decoration: none; }
   font-size: var(--fs-mono);
   line-height: 1.65;
   overflow-x: auto;
+  /* Log output is the only thing that ever goes in here, and pm2 tables and git logs have long runs
+     with no spaces in them. Without this the line is clipped at the edge with no way to read the
+     rest — a horizontal scrollbar inside a card is not a way. */
+  overflow-wrap: anywhere;
 }
 
 /* ── the bar at the top of everything ─────────────────────────────── */

@@ -31,10 +31,13 @@
 .ac-svc { color: var(--ink-muted); font-size: var(--fs-small); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--border-strong); }
 .ac-svc:hover { color: var(--accent); }
 .ac-when { color: var(--ink-ghost); margin-left: auto; flex: none; }
-.ac-cmd { margin: 0 0 var(--s-2); white-space: pre-wrap; word-break: break-all; }
+.ac-cmd { margin: 0 0 var(--s-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .ac-why { margin: 0 0 var(--s-2); color: var(--ink-muted); font-size: var(--fs-small); display: flex; gap: var(--s-3); align-items: baseline; }
 .ac-why .micro { flex: none; color: var(--ink-faint); }
-.ac-out { margin: 0 0 var(--s-2); max-height: 9rem; overflow: auto; white-space: pre-wrap; }
+/* pm2 tables and git logs have long runs with no spaces in them, so pre-wrap alone leaves the text
+   clipped at the edge of the card with no way to read the rest. Break anywhere, and scroll down
+   rather than sideways. */
+.ac-out { margin: 0 0 var(--s-2); max-height: 11rem; overflow-y: auto; overflow-x: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
 .ac-inc { font-size: var(--fs-mono); color: var(--ink-ghost); transition: color var(--dur-1) var(--ease-out); }
 .ac-inc:hover { color: var(--accent); }
 
