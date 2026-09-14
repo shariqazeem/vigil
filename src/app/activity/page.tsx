@@ -25,11 +25,15 @@ export default async function ActivityPage() {
   const services = [...mine, ...demo];
   const byId = new Map(services.map((s) => [s.id, s]));
 
-  const rows = services
+  // Every operation, then the most recent page of them. Rendering two hundred with their output
+  // made a page thirty-five thousand pixels tall that nobody scrolls to the bottom of, and the
+  // complete record of any one incident is on that incident's own page anyway.
+  const SHOWN = 60;
+  const every = services
     .flatMap((s) => listIncidents(s.id, 60))
     .flatMap((i) => listActions(i.id).map((a) => ({ ...a, incident: i })))
-    .sort((a, b) => b.at - a.at)
-    .slice(0, 200);
+    .sort((a, b) => b.at - a.at);
+  const rows = every.slice(0, SHOWN);
 
   const humans = services
     .flatMap((s) => listEvents(s.id, 40))
@@ -37,9 +41,10 @@ export default async function ActivityPage() {
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 20);
 
-  const acted = rows.filter((r) => r.verdict === "allow" && r.risk !== "read").length;
-  const refused = rows.filter((r) => r.verdict === "refuse").length;
-  const asked = rows.filter((r) => r.verdict === "ask").length;
+  // Counted over everything, not over the page — a total that changes when you scroll is not one.
+  const acted = every.filter((r) => r.verdict === "allow" && r.risk !== "read").length;
+  const refused = every.filter((r) => r.verdict === "refuse").length;
+  const asked = every.filter((r) => r.verdict === "ask").length;
 
   return (
     <main className="ac">
@@ -55,7 +60,7 @@ export default async function ActivityPage() {
           column is for.
         </p>
         <div className="ac-stats">
-          <span className="ac-stat"><b>{rows.length}</b> operations</span>
+          <span className="ac-stat"><b>{every.length}</b> operations</span>
           <span className="ac-stat"><b>{acted}</b> that changed something</span>
           <span className="ac-stat"><b>{asked}</b> stopped to ask</span>
           <span className="ac-stat"><b>{refused}</b> refused</span>
@@ -79,7 +84,14 @@ export default async function ActivityPage() {
       ) : null}
 
       <section className="ac-sec">
-        <h2 className="in-h2">What Warden ran</h2>
+        <h2 className="in-h2">
+          What Warden ran
+          {every.length > SHOWN ? (
+            <span className="in-count mono">
+              the most recent {SHOWN} · each incident&rsquo;s own page has all of its
+            </span>
+          ) : null}
+        </h2>
         {rows.length === 0 ? (
           <p className="ac-empty">
             Nothing yet. Warden has not needed to do anything — which, for an operator, is the normal state and the good one.
