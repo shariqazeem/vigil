@@ -4,6 +4,8 @@
 %% Render: node scripts/render-diagram.mjs
 flowchart LR
 
+  CONSOLE["<b>THE CONSOLE</b> · the product, not a view of it<br/>register a service · <b>write the policy</b> · add checks<br/>sweep now · answer the question · read the audit<br/><i>canEdit is not canView · a form never names a key file</i>"]:::human
+
   subgraph SWEEP["THE SWEEP · pm2 cron, every 10 min, no model"]
     direction TB
     PROBE["probe a service<br/><i>http · process</i>"]:::code
@@ -11,6 +13,8 @@ flowchart LR
     OPEN{"failed twice<br/>in a row?"}:::gate
     PROBE --> READ --> OPEN
   end
+
+  CONSOLE --> PROBE
 
   OPEN -. "no — nothing to say" .-> QUIET(["it has been fine"]):::quiet
   OPEN == "yes" ==> INC[("incident opened")]:::store
@@ -27,6 +31,7 @@ flowchart LR
   GUARD{{"<b>four rules no policy can switch off</b><br/>no operation that does not exist ·<br/>no acting before diagnosing ·<br/>no second go at the same act ·<br/>no acting past a refusal"}}:::gate
 
   POLICY{{"<b>THE POLICY</b> — per service, written by a human<br/>may → do it · ask → stop and ask · never → refuse<br/><i>plus an action cap and a cooldown</i>"}}:::policy
+  CONSOLE == "a human writes it, in the console" ==> POLICY
 
   CAT[("<b>the catalogue</b> — 16 named operations<br/>zod-validated args, spawned with execFile<br/><i>there is no shell, and no way to compose one</i><br/>4 are forbidden to every policy")]:::src
 
@@ -39,6 +44,10 @@ flowchart LR
   HUMAN(["<b>a human</b><br/>approves, or does not"]):::human
   POLICY == "ask · context.interrupt()<br/><b>stopReason: interrupt</b>" ==> HUMAN
   HUMAN == "InterruptResponseContent<br/>hours later, another process" ==> REM
+
+  NOTIFY["<b>reach them</b><br/><i>POST to a webhook · Slack, Discord, your own</i><br/>never fails a run; every attempt recorded"]:::code
+  POLICY -. "it stopped" .-> NOTIFY
+  NOTIFY -.-> HUMAN
   REM -.-> SESS[("the session, on disk")]:::code
   SESS -.-> REM
 
@@ -53,6 +62,8 @@ flowchart LR
   GUARD --> AUDIT
   POLICY --> AUDIT
   VERIFY --> AUDIT
+
+  AUDIT -.-> HUMAN
 
   classDef agent fill:#eeeefb,stroke:#3f3cbb,stroke-width:1.5px,color:#14161a;
   classDef code fill:#f4f5f7,stroke:#5a616c,stroke-width:1.5px,color:#14161a;
