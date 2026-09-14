@@ -1,45 +1,173 @@
-.hm { max-width: 960px; margin: 0 auto; padding: 56px 24px 80px; }
-.hm-mark { font-weight: 700; letter-spacing: -0.01em; font-size: 18px; }
-.hm-nav { display: flex; gap: 20px; font-size: 14px; }
-.hm-nav a { color: var(--ink-muted); }
-.hm-nav a:last-child { color: var(--accent); font-weight: 600; }
-.hm-kicker { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 12px; }
-.hm-hero h1 { font-size: clamp(40px, 7vw, 68px); line-height: 1.02; letter-spacing: -0.03em; margin: 0 0 20px; max-width: 12ch; }
-.hm-lede { font-size: 19px; line-height: 1.5; color: var(--ink-muted); max-width: 640px; margin: 0 0 28px; }
-.hm-cta { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-.hm-go { display: inline-block; padding: 13px 20px; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; font-size: 15px; }
-.hm-go:hover { filter: brightness(0.94); }
-.hm-cta-note { font-size: 13.5px; color: var(--ink-faint); }
-.hm-rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 72px 0 64px; }
-.hm-step { padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface, #fff); display: grid; gap: 8px; align-content: start; }
-.hm-n { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; background: var(--accent); color: #fff; font-family: var(--font-mono); font-size: 12px; font-weight: 700; }
-.hm-step h2 { font-size: 18px; letter-spacing: -0.01em; margin: 4px 0 0; }
-.hm-step p { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-muted); }
-.hm-step .hm-never { color: var(--ink); font-size: 13.5px; padding-top: 6px; border-top: 1px dashed var(--border); }
-.hm-sample h2, .hm-who h2, .hm-pay h2 { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 14px; }
-.hm-board { padding: 18px 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface, #fff); display: grid; gap: 8px; }
-.hm-board-title { margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
-.hm-board-title span { font-family: var(--font-mono); font-size: 12px; font-weight: 400; color: var(--ink-faint); letter-spacing: 0; }
-.hm-row { display: grid; grid-template-columns: 90px 1fr auto auto; gap: 14px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
-.hm-row.is-paid { border-color: #bfe3c8; }
-.hm-row-note { font-size: 13px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hm-row em { font-style: normal; font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; }
-.hm-pill { font-style: normal; font-size: 11.5px; padding: 3px 9px; border-radius: 999px; background: var(--surface-2, #eeece6); color: var(--ink-muted); }
-.hm-pill.is-paid { background: #e6f4ea; color: #15803d; }
-.hm-msg.is-in { justify-self: end; max-width: 70%; background: var(--accent-soft); border-color: var(--accent-border); }
-.hm-msg { margin-top: 6px; padding: 12px 14px; border-radius: 12px; background: var(--bg); border: 1px solid var(--border); }
-.hm-msg-meta { display: block; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-faint); margin-bottom: 4px; }
-.hm-msg p { margin: 0; font-size: 14.5px; line-height: 1.5; }
-.hm-board-fine { margin: 6px 0 0; font-size: 13px; color: var(--ink-faint); line-height: 1.5; }
-.hm-pay { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin: 64px 0; }
-.hm-pay p, .hm-who p { margin: 0; font-size: 16px; line-height: 1.55; color: var(--ink-muted); max-width: 600px; }
-.hm-who { margin: 0 0 64px; display: grid; gap: 18px; justify-items: start; }
-.hm-go-2 { margin-top: 4px; }
-.hm-foot { padding-top: 24px; border-top: 1px solid var(--border); font-size: 13px; color: var(--ink-faint); }
-.hm-foot p { margin: 0; }
-.hm-foot a { color: var(--accent); }
-@media (max-width: 720px) {
-  .hm-rail, .hm-pay { grid-template-columns: 1fr; }
-  .hm-row { grid-template-columns: 1fr auto; }
-  .hm-row-note { grid-column: 1 / -1; }
+/**
+ * The front door. Long, quiet, mostly type. One warm light at the top, because the whole product is
+ * about somebody being awake while you are not.
+ */
+
+.hm { position: relative; overflow-x: clip; }
+
+.hm-lamp {
+  position: absolute;
+  top: -340px;
+  left: 50%;
+  width: 1100px;
+  height: 900px;
+  margin-left: -550px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 199, 107, 0.11) 0%, rgba(255, 199, 107, 0.035) 38%, transparent 68%);
+  pointer-events: none;
+  z-index: 0;
 }
+
+/* the lamp must stay out of flow: a bare `.hm > *` here would override its position. */
+.hm > nav, .hm > header, .hm > section, .hm > footer { position: relative; z-index: 1; }
+
+/* ── nav ──────────────────────────────────────────────────────────── */
+
+.hm-nav {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 22px var(--gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.hm-brand { margin: 0; color: var(--lamp); letter-spacing: 0.24em; text-transform: uppercase; font-size: 0.78rem; }
+.hm-nav-r { display: flex; align-items: center; gap: 18px; }
+.hm-nav-l { color: var(--ink-3); font-size: var(--fs-small); }
+.hm-nav-l:hover { color: var(--ink); }
+@media (max-width: 560px) { .hm-nav-l { display: none; } }
+
+/* ── hero ─────────────────────────────────────────────────────────── */
+
+.hm-hero {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: clamp(3rem, 10vh, 7rem) var(--gutter) clamp(3rem, 8vh, 5.5rem);
+}
+.hm-eyebrow { margin: 0 0 1.5rem; color: var(--ink-4); letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.68rem; }
+.hm-h1 {
+  margin: 0 0 1.75rem;
+  font-size: var(--fs-display);
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  max-width: 16ch;
+}
+.hm-lede { margin: 0 0 1rem; max-width: 58ch; color: var(--ink-2); font-size: clamp(1rem, 0.95rem + 0.3vw, 1.12rem); line-height: 1.62; }
+.hm-lede-2 { color: var(--ink-3); }
+.hm-cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 2rem; }
+.hm-note { margin: 14px 0 0; color: var(--ink-4); font-size: 0.7rem; }
+
+/* ── the live artifact ────────────────────────────────────────────── */
+
+.hm-proof {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 7vh, 4.5rem) var(--gutter);
+  border-top: 1px solid var(--line-soft);
+}
+.hm-k { color: var(--lamp-dim); letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.64rem; margin: 0 0 8px; }
+.hm-h2 { margin: 0 0 1.75rem; font-size: var(--fs-head); font-weight: 600; letter-spacing: -0.02em; max-width: 38ch; line-height: 1.25; }
+.hm-proof-head { margin-bottom: 1.5rem; }
+
+.hm-card {
+  padding: clamp(20px, 3vw, 30px);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--alarm);
+  border-radius: var(--r-3);
+  background: linear-gradient(180deg, rgba(255, 107, 107, 0.045), transparent 45%), var(--surface);
+  max-width: 720px;
+}
+.hm-card.is-down { border-left-color: var(--unknown); background: var(--surface); color: var(--ink-3); font-size: var(--fs-small); }
+.hm-card-h { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-bottom: 10px; }
+.hm-card-id { margin: 0; color: var(--ink); font-size: 0.86rem; font-weight: 500; letter-spacing: 0.02em; }
+.hm-card-agency { margin: 0; color: var(--ink-4); font-size: 0.68rem; }
+.hm-card-t { margin: 0 0 14px; font-size: 1.2rem; color: var(--ink); line-height: 1.3; }
+.hm-card-q { margin: 0 0 14px; padding-left: 16px; border-left: 2px solid var(--alarm-dim); }
+.hm-card-q p { margin: 0; font-size: 1.05rem; color: var(--ink); line-height: 1.5; }
+.hm-card-q cite { display: block; margin-top: 7px; font-style: normal; color: var(--ink-4); font-size: 0.68rem; }
+.hm-card-units { margin: 0 0 14px; color: var(--ink-2); font-size: var(--fs-small); }
+.hm-card-units .mono { color: var(--alarm); font-size: 1.1rem; }
+.hm-card-src { margin: 0; padding-top: 12px; border-top: 1px solid var(--line-soft); color: var(--ink-4); font-size: 0.66rem; word-break: break-all; }
+.hm-proof-foot { margin: 1.5rem 0 0; max-width: var(--measure); color: var(--ink-3); font-size: var(--fs-small); }
+
+/* ── the three steps ──────────────────────────────────────────────── */
+
+.hm-how { max-width: 1080px; margin: 0 auto; padding: 0 var(--gutter); }
+.hm-step {
+  padding: clamp(2.5rem, 6vh, 4rem) 0;
+  border-top: 1px solid var(--line-soft);
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  align-items: start;
+}
+.hm-say p:last-child { margin-bottom: 0; }
+@media (max-width: 860px) { .hm-step { grid-template-columns: 2.25rem minmax(0, 1fr); } .hm-step > .hm-pre, .hm-step > .hm-halt { grid-column: 2; } }
+
+.hm-n { margin: 5px 0 0; color: var(--ink-4); font-size: 0.78rem; letter-spacing: 0.08em; }
+.hm-h3 { margin: 0 0 12px; font-size: clamp(1.15rem, 1rem + 0.7vw, 1.5rem); font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
+.hm-step > div, .hm-step > p { color: var(--ink-3); }
+.hm-step p { margin: 0 0 12px; color: var(--ink-3); font-size: var(--fs-small); line-height: 1.65; max-width: 46ch; }
+.hm-step p em { color: var(--ink-2); font-style: italic; }
+.hm-step .mono { color: var(--lamp-dim); }
+.hm-small { color: var(--ink-4) !important; font-size: var(--fs-tiny) !important; }
+.hm-small strong { color: var(--unknown); font-weight: 600; }
+
+.hm-pre {
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  background: #04070d;
+  color: var(--ink-3);
+  font-size: 0.7rem;
+  line-height: 1.7;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.hm-halt {
+  padding: 22px 24px;
+  border: 1px solid var(--lamp-dim);
+  border-radius: var(--r-3);
+  background: linear-gradient(180deg, rgba(255, 199, 107, 0.07), rgba(255, 199, 107, 0.015));
+  text-align: center;
+}
+.hm-halt-pill {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--lamp-dim);
+  color: var(--lamp);
+  font-size: 0.68rem;
+}
+.hm-halt-q { margin: 0 !important; font-size: 1.3rem !important; line-height: 1.3 !important; color: var(--ink) !important; max-width: none !important; text-wrap: balance; }
+.hm-halt-sub { margin: 12px 0 0 !important; font-size: var(--fs-tiny) !important; color: var(--ink-4) !important; max-width: none !important; }
+
+/* ── the rules ────────────────────────────────────────────────────── */
+
+.hm-rules { max-width: 1080px; margin: 0 auto; padding: clamp(2.5rem, 7vh, 4.5rem) var(--gutter); border-top: 1px solid var(--line-soft); }
+.hm-rules-lede { margin: 0 0 2rem; max-width: var(--measure); color: var(--ink-3); font-size: var(--fs-small); }
+.hm-rule-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft); border-radius: var(--r-3); overflow: hidden; }
+.hm-rule-list li { padding: 18px 20px; background: var(--surface); color: var(--ink-3); font-size: var(--fs-small); line-height: 1.6; }
+.hm-rule-list b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
+.hm-rule-list em { color: var(--ink-2); font-style: italic; }
+
+/* ── how it is built ──────────────────────────────────────────────── */
+
+.hm-built { max-width: 1080px; margin: 0 auto; padding: clamp(2.5rem, 7vh, 4.5rem) var(--gutter); border-top: 1px solid var(--line-soft); }
+.hm-built-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: clamp(1.5rem, 3vw, 2.5rem); }
+.hm-built-grid p { margin: 0; color: var(--ink-3); font-size: var(--fs-small); line-height: 1.65; }
+.hm-built-grid b { color: var(--ink); font-weight: 600; }
+.hm-built-grid em { color: var(--ink-2); font-style: italic; }
+
+/* ── foot ─────────────────────────────────────────────────────────── */
+
+.hm-foot { max-width: 1080px; margin: 0 auto; padding: clamp(3rem, 9vh, 6rem) var(--gutter) 5rem; border-top: 1px solid var(--line-soft); text-align: center; }
+.hm-foot-line { margin: 0 0 2rem; font-size: clamp(1.6rem, 1.1rem + 2.2vw, 2.8rem); line-height: 1.15; letter-spacing: -0.02em; color: var(--ink); }
+.hm-foot .hm-cta { justify-content: center; }
+.hm-foot-fine { margin: 2.5rem 0 0; color: var(--ink-4); font-size: 0.68rem; }
+.hm-foot-fine a { color: var(--ink-3); text-decoration: underline; text-underline-offset: 2px; }
+.hm-foot-fine a:hover { color: var(--lamp); }

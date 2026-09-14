@@ -1,34 +1,98 @@
-import { BedrockModel } from "@strands-agents/sdk";
+import { BedrockModel, DefaultModelRetryStrategy, ExponentialBackoff, FallbackStrategy, ModelRouter, RoutingCandidate } from "@strands-agents/sdk";
 import { OpenAIModel } from "@strands-agents/sdk/models/openai";
 
 /**
- * One place that decides which model the agents run on. Every agent asks here; none constructs its own.
+ * One place that decides which model each part of Vigil runs on. Nothing else constructs a model.
  *
- * On AWS the agents run on Amazon Bedrock: set BEDROCK_MODEL_ID (and AWS credentials / AWS_REGION)
- * and the factory switches — no other code changes. Anywhere else, any OpenAI-compatible endpoint
- * works (LLM_BASE_URL + LLM_API_KEY + LLM_MODEL). The Reader's structured output is a forced tool
- * call, so the model must honour tool use; the ones listed in the README are known to.
+ * On AWS the agents run on Amazon Bedrock: set BEDROCK_MODEL_ID (plus AWS credentials / AWS_REGION,
+ * or AWS_BEARER_TOKEN_BEDROCK) and every role switches — and because a watch that runs for years
+ * cannot go dark when one provider does, Bedrock is wired as the PRIMARY of a Strands ModelRouter
+ * with the OpenAI-compatible gateway behind it as a FallbackStrategy. With no Bedrock configured
+ * the gateway is used on its own, and the product says so honestly rather than pretending.
+ *
+ * Roles exist because the work is not all the same difficulty. Reading a photo of a shelf and
+ * deciding whether four hundred words of recall prose cover YOUR unit are judgement; listing which
+ * federal source applies to a cot is not. `VIGIL_MODEL_HEAVY` may name a stronger model for the
+ * judgement roles; without it every role shares one model and nothing breaks.
  */
+export type Role = "intake" | "triage" | "watch" | "match" | "brief";
+
+const HEAVY: Role[] = ["intake", "match"];
+/**
+ * Reading a photo of a shelf and deciding whether four hundred words of recall prose describe YOUR
+ * unit are judgement, and get the better model. Listing which agency covers a cot is not, and gets
+ * the fast one — which is also sixteen times cheaper per output token, and a watch that runs every
+ * night for years is a cost per night, not a cost per demo.
+ */
+const DEFAULT_MODEL = "MiniMax-M3";
+/**
+ * Kept under the gateway's per-request cost ceiling. Commonstack reserves `max_tokens × price`
+ * against the key's cap before it will start a request, and rejects the whole call with
+ * `429 quota exceeded (cap 0.5)` if the reservation does not fit — measured: 4000 passes, 8000 does
+ * not. Nothing Vigil writes is long; the ceiling costs it nothing and a 429 costs it a pass.
+ */
+const MAX_TOKENS = Number(process.env.VIGIL_MAX_TOKENS ?? 3000);
+
 export interface MadeModel {
-  instance: OpenAIModel | BedrockModel;
+  instance: OpenAIModel | BedrockModel | ModelRouter;
   id: string;
-  provider: "bedrock" | "openai-compatible";
+  provider: "bedrock" | "bedrock+gateway" | "openai-compatible";
 }
 
-const MAX_TOKENS = 4000;
-
-export function makeModel(): MadeModel {
-  const bedrockId = process.env.BEDROCK_MODEL_ID?.trim();
-  if (bedrockId) {
-    const region = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "us-east-1";
-    return { instance: new BedrockModel({ modelId: bedrockId, region, maxTokens: MAX_TOKENS }), id: bedrockId, provider: "bedrock" };
-  }
+function gateway(modelId: string): OpenAIModel {
   const baseURL = process.env.LLM_BASE_URL ?? process.env.COMMONSTACK_BASE_URL;
   const apiKey = process.env.LLM_API_KEY ?? process.env.COMMONSTACK_API_KEY;
-  const modelId = process.env.LLM_MODEL ?? "openai/gpt-5.4-mini-2026-03-17";
   if (!baseURL || !apiKey) {
     throw new Error("No model configured: set BEDROCK_MODEL_ID for Bedrock, or LLM_BASE_URL and LLM_API_KEY for an OpenAI-compatible endpoint.");
   }
-  const instance = new OpenAIModel({ api: "chat", modelId, apiKey, clientConfig: { baseURL }, maxTokens: MAX_TOKENS });
-  return { instance, id: modelId, provider: "openai-compatible" };
+  return new OpenAIModel({ api: "chat", modelId, apiKey, clientConfig: { baseURL }, maxTokens: MAX_TOKENS });
+}
+
+/**
+ * Backoff that survives a provider having a bad minute. A nightly watch retries; it does not fail.
+ * One instance per agent — the SDK binds a strategy to the agent that owns it.
+ */
+export const retryStrategy = (): DefaultModelRetryStrategy =>
+  new DefaultModelRetryStrategy({
+    maxAttempts: 4,
+    backoff: new ExponentialBackoff({ baseMs: 500, maxMs: 20_000, jitter: "decorrelated" }),
+  });
+
+export function makeModel(role: Role = "watch"): MadeModel {
+  const heavy = HEAVY.includes(role);
+  const gatewayId = (heavy ? process.env.VIGIL_MODEL_HEAVY : undefined) ?? process.env.LLM_MODEL ?? DEFAULT_MODEL;
+  const bedrockId = (heavy ? process.env.BEDROCK_MODEL_ID_HEAVY : undefined) ?? process.env.BEDROCK_MODEL_ID?.trim();
+
+  if (!bedrockId) return { instance: gateway(gatewayId), id: gatewayId, provider: "openai-compatible" };
+
+  const region = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "us-west-2";
+  const bedrock = new BedrockModel({
+    modelId: bedrockId,
+    region,
+    maxTokens: MAX_TOKENS,
+    // Bedrock prompt caching: the system prompts here are long and identical across a pass.
+    cacheConfig: { strategy: "auto" },
+    ...(process.env.AWS_BEARER_TOKEN_BEDROCK ? { apiKey: process.env.AWS_BEARER_TOKEN_BEDROCK } : {}),
+  });
+
+  // If a gateway is also configured, Bedrock leads and the gateway catches.
+  try {
+    const fallback = gateway(gatewayId);
+    const router = new ModelRouter(
+      [
+        new RoutingCandidate({ model: bedrock, name: "bedrock", description: `Amazon Bedrock ${bedrockId}` }),
+        new RoutingCandidate({ model: fallback, name: "gateway", description: `fallback ${gatewayId}` }),
+      ],
+      { strategy: new FallbackStrategy(), maxSwitches: 2 },
+    );
+    return { instance: router, id: `${bedrockId} → ${gatewayId}`, provider: "bedrock+gateway" };
+  } catch {
+    return { instance: bedrock, id: bedrockId, provider: "bedrock" };
+  }
+}
+
+/** What the product tells the truth about on screen: which model actually ran this pass. */
+export function modelLabel(): string {
+  const m = makeModel("watch");
+  return `${m.id} (${m.provider})`;
 }

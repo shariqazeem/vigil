@@ -1,42 +1,73 @@
-import { TopBar } from "@/components/topbar";
-import { currentOwner } from "@/lib/auth/session";
+import Link from "next/link";
 import "./new.css";
 
-export const dynamic = "force-dynamic";
+export const metadata = { title: "Tell Vigil what is in your home" };
 
-export default async function NewLedger() {
-  const owner = await currentOwner();
+/**
+ * The drop. The whole of onboarding: say what you own, in whatever shape it comes out.
+ *
+ * The examples matter more than the form does. People do not know that a dresser is a recallable
+ * object, or that a recall notice is scoped to a manufacture window, so the placeholder teaches by
+ * being an ordinary sentence about ordinary things rather than a schema.
+ */
+export default function New() {
   return (
-    <>
-    <TopBar />
     <main className="nw">
-      <p className="nw-kicker">Owed</p>
-      <h1>Drop it on the agent.</h1>
-      <p className="nw-lede">A screenshot of the split, the group chat, the invoice, or just type who owes what. Owed reads it, asks them, and comes back to you only when it needs a decision.</p>
-      <form className="nw-form" action="/api/ledgers" method="post" encType="multipart/form-data">
+      <p className="nw-eyebrow mono">
+        <Link href="/">vigil</Link> / new watch
+      </p>
+      <h1 className="nw-h1 serif">What&rsquo;s in your home?</h1>
+      <p className="nw-lede">
+        Anything a safety regulator could ever issue a notice about: the car, the cot, the dresser, the heater, the baby monitor,
+        what&rsquo;s in the medicine drawer. Write it the way you&rsquo;d say it. Vigil works out the rest, and asks rather than guesses.
+      </p>
+
+      <form className="nw-form" method="post" action="/api/households" encType="multipart/form-data">
         <label className="nw-field">
-          <span>Paste it</span>
-          <textarea name="text" rows={7} placeholder={"Sara: hotel was 48,000 for the 3 nights, split 6 ways = 8,000 each\nAli: cool\nMaryam: can I pay Friday?"} />
+          <span className="nw-k">What to call this home</span>
+          <input name="name" placeholder="Our flat" maxLength={80} />
         </label>
-        <label className="nw-field nw-drop">
-          <span>Or drop a screenshot</span>
-          <input type="file" name="image" accept="image/png,image/jpeg,image/webp" />
+
+        <label className="nw-field">
+          <span className="nw-k">What&rsquo;s in it</span>
+          <textarea
+            name="text"
+            rows={7}
+            maxLength={12000}
+            placeholder={`We've got a 2019 Honda Accord.
+Ayesha's room has a Mainstays 9-drawer fabric dresser — my sister gave it to us, so I don't know how old it is.
+There's a Babysense Max View VBM55 baby monitor next to the cot.
+And vitafusion melatonin gummies in the kitchen drawer.`}
+          />
         </label>
+
         <div className="nw-row">
-          <label className="nw-field"><span>Anything to add</span><input name="caption" placeholder="I paid the whole bill" /></label>
-          <label className="nw-field nw-narrow"><span>Your name, to them</span><input name="owner" placeholder="Sara" defaultValue={owner?.name ?? ""} required /></label>
-          <label className="nw-field nw-narrow"><span>Currency if unclear</span><input name="currency" defaultValue="USD" maxLength={3} /></label>
-        </div>
-        {owner?.wallet ? null : (
           <label className="nw-field">
-            <span>Where the money should go — an Arc wallet, optional (sign in and yours is used)</span>
-            <input name="payoutTo" placeholder="0x…" pattern="0x[0-9a-fA-F]{40}" title="An Arc address" />
+            <span className="nw-k">
+              VIN, if you have one <em>optional</em>
+            </span>
+            <input name="vin" placeholder="1HGCV1F34KA000000" maxLength={24} spellCheck={false} className="mono" />
+            <span className="nw-hint">Decoded by NHTSA itself, never guessed at.</span>
           </label>
-        )}
-        <button className="nw-go" type="submit">Read it and start collecting →</button>
-        <p className="nw-note">Takes a few seconds. You will see exactly what the agent read before anyone is messaged.</p>
+
+          <label className="nw-field">
+            <span className="nw-k">
+              Or a photo <em>optional</em>
+            </span>
+            <input type="file" name="photo" accept="image/png,image/jpeg,image/webp" />
+            <span className="nw-hint">A shelf, a box, a receipt, a label.</span>
+          </label>
+        </div>
+
+        <button type="submit" className="btn nw-go">
+          Start watching
+        </button>
+
+        <p className="nw-fine">
+          No account. The watch belongs to whoever holds the cookie this sets. Vigil reads public federal safety data — it never
+          sends anything to anyone, and it never speaks for you: if it wants to tell someone else, it stops and asks first.
+        </p>
       </form>
     </main>
-    </>
   );
 }

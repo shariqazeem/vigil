@@ -1,6 +1,59 @@
-/* A small reset; every colour, radius, shadow and type token lives in styles/tokens.css. */
+/* A small reset. Every colour, radius, size and duration lives in styles/tokens.css. */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-img, video { max-width: 100%; height: auto; display: block; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--night);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+html { color-scheme: dark; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+img, video, svg { max-width: 100%; display: block; }
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: inherit; text-decoration: none; }
+::selection { background: var(--lamp); color: var(--lamp-ink); }
+
+:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: 3px; }
+
+/* Numbers, ids, endpoints and times are facts; facts are set in mono and can be copied. */
+.mono { font-family: var(--font-mono); font-size: var(--fs-mono); letter-spacing: -0.01em; }
+.serif { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.01em; }
+
+/* The one shared scroll-reveal. Nothing animates on mount; things animate when they arrive. */
+.reveal { opacity: 0; transform: translate3d(0, 14px, 0); transition: opacity var(--dur-3) var(--ease), transform var(--dur-3) var(--ease); }
+.reveal.is-in { opacity: 1; transform: none; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ── the one button ───────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--lamp);
+  background: var(--lamp);
+  color: var(--lamp-ink);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--dur-1) var(--ease), filter var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease);
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: default; filter: none; }
+.btn-quiet { background: transparent; border-color: var(--line-strong); color: var(--ink-2); }
+.btn-quiet:hover { border-color: var(--ink-3); color: var(--ink); filter: none; }
+.btn-alarm { background: var(--alarm); border-color: var(--alarm); color: #2a0709; }

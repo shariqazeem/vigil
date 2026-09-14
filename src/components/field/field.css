@@ -1,0 +1,269 @@
+/**
+ * The field. Dark, quiet, and mostly still — a watch is not a dashboard, and for months at a time
+ * the correct picture is "nothing is happening". Only three things ever move: the lamp travelling
+ * to whatever is being asked about, the ring around a thing while its request is actually open,
+ * and a stamp landing when a government record is matched.
+ */
+
+.fld {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--r-4);
+  background: radial-gradient(120% 90% at 50% 0%, #0c1526 0%, var(--night-2) 55%, #05080e 100%);
+  overflow: hidden;
+  min-height: min(72vh, 620px);
+  isolation: isolate;
+}
+
+/* a faint star haze, so the empty space is not flat black */
+.fld-sky {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 18% 22%, rgba(255, 255, 255, 0.16), transparent 60%),
+    radial-gradient(1px 1px at 72% 16%, rgba(255, 255, 255, 0.12), transparent 60%),
+    radial-gradient(1px 1px at 34% 78%, rgba(255, 255, 255, 0.1), transparent 60%),
+    radial-gradient(1px 1px at 86% 66%, rgba(255, 255, 255, 0.13), transparent 60%),
+    radial-gradient(1px 1px at 58% 44%, rgba(255, 255, 255, 0.08), transparent 60%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.fld-web {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.fld-web line {
+  stroke: var(--line);
+  stroke-width: 0.12;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── the lamp ─────────────────────────────────────────────────────── */
+
+.fld-lamp {
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  margin: -170px 0 0 -170px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--lamp-glow) 0%, rgba(255, 199, 107, 0.06) 42%, transparent 70%);
+  transition: left var(--dur-4) var(--ease), top var(--dur-4) var(--ease), opacity var(--dur-3) var(--ease);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── the things ───────────────────────────────────────────────────── */
+
+.fld-nodes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+.fld-node {
+  position: absolute;
+  width: 168px;
+  margin: -52px 0 0 -84px;
+  text-align: center;
+  color: var(--ink-3);
+  transition: color var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease), filter var(--dur-2) var(--ease);
+}
+
+.fld-mark {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  margin: 0 auto 10px;
+  display: grid;
+  place-items: center;
+}
+
+.fld-glyph {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: rgba(10, 16, 28, 0.82);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  transition: color var(--dur-2) var(--ease), border-color var(--dur-2) var(--ease), box-shadow var(--dur-3) var(--ease), background var(--dur-2) var(--ease);
+}
+
+.fld-ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.fld-ring circle { fill: none; stroke-width: 2.5; }
+.fld-ring-track { stroke: var(--line-soft); }
+.fld-ring-live {
+  stroke: transparent;
+  stroke-linecap: round;
+  stroke-dasharray: 64 212;
+  stroke-dashoffset: 0;
+}
+
+/* looking: the ring turns for exactly as long as the request is open */
+.fld-node.is-looking { color: var(--lamp); }
+.fld-node.is-looking .fld-glyph {
+  color: var(--lamp);
+  border-color: var(--lamp-dim);
+  box-shadow: var(--shadow-lamp);
+  background: rgba(26, 19, 6, 0.7);
+}
+.fld-node.is-looking .fld-ring-live {
+  stroke: var(--lamp);
+  animation: fld-turn 1.5s linear infinite;
+}
+@keyframes fld-turn { to { transform: rotate(360deg); transform-origin: 50% 50%; } }
+
+.fld-node.is-clear .fld-glyph { color: var(--clear); border-color: var(--clear-dim); }
+.fld-node.is-clear .fld-ring-live { stroke: var(--clear-dim); stroke-dasharray: 276; }
+
+.fld-node.is-alarm { color: var(--alarm); }
+.fld-node.is-alarm .fld-glyph {
+  color: var(--alarm);
+  border-color: var(--alarm-dim);
+  box-shadow: var(--shadow-alarm);
+  background: rgba(30, 10, 12, 0.72);
+}
+.fld-node.is-alarm .fld-ring-live { stroke: var(--alarm); stroke-dasharray: 276; }
+.fld-node[data-severity="critical"] .fld-glyph { animation: fld-breathe 3.4s var(--ease) infinite; }
+@keyframes fld-breathe {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.3), 0 0 34px -10px rgba(255, 107, 107, 0.45); }
+  50% { box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.55), 0 0 52px -6px rgba(255, 107, 107, 0.8); }
+}
+
+/* the stamp: it lands when a record is matched, it does not fade in on mount */
+.fld-stamp {
+  position: absolute;
+  z-index: 2;
+  right: -16px;
+  bottom: -4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--alarm-dim);
+  background: #1a0a0d;
+  color: var(--alarm);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  animation: fld-stamp var(--dur-2) var(--ease-spring) both;
+}
+@keyframes fld-stamp {
+  from { transform: rotate(-14deg) scale(1.9); opacity: 0; }
+  to { transform: rotate(-4deg) scale(1); opacity: 1; }
+}
+
+.fld-label {
+  margin: 0;
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.fld-meta { margin: 1px 0 0; color: var(--ink-4); font-size: 0.72rem; }
+.fld-status { margin: 4px 0 0; font-size: 0.7rem; min-height: 1em; }
+.fld-status .is-looking { color: var(--lamp); }
+.fld-status .is-clear { color: var(--clear-dim); }
+.fld-status .is-alarm { color: var(--alarm); }
+.fld-status .is-unknown { color: var(--unknown); }
+.fld-status .is-quiet { color: var(--ink-4); }
+
+/* ── the halt ─────────────────────────────────────────────────────── */
+
+.fld.is-frozen .fld-node,
+.fld.is-frozen .fld-web,
+.fld.is-frozen .fld-lamp { filter: grayscale(0.8) brightness(0.38); transition: filter var(--dur-3) var(--ease); }
+
+/* the field goes dark around the question, so the question is the only thing to read */
+.fld-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: radial-gradient(60% 52% at 50% 50%, rgba(3, 5, 9, 0.94) 0%, rgba(3, 5, 9, 0.86) 45%, rgba(3, 5, 9, 0.55) 100%);
+  animation: fld-halt var(--dur-3) var(--ease) both;
+  pointer-events: none;
+}
+
+.fld-halt {
+  position: absolute;
+  z-index: 4;
+  inset: auto 0 0;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0 auto;
+  max-width: 44ch;
+  padding: 0 var(--gutter);
+  text-align: center;
+  animation: fld-halt var(--dur-3) var(--ease) both;
+}
+@keyframes fld-halt { from { opacity: 0; transform: translateY(calc(-50% + 10px)); } }
+
+.fld-halt-pill {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--lamp-dim);
+  background: rgba(255, 199, 107, 0.08);
+  color: var(--lamp);
+  font-size: 0.7rem;
+}
+.fld-halt-q { margin: 0; font-size: clamp(1.35rem, 1rem + 1.5vw, 2.05rem); line-height: 1.22; color: var(--ink); text-wrap: balance; }
+.fld-halt-note { margin: 10px 0 0; font-size: var(--fs-tiny); color: var(--ink-3); }
+
+/* ── the endpoint log ─────────────────────────────────────────────── */
+
+.fld-ticker {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px var(--gutter) 14px;
+  background: linear-gradient(to top, rgba(5, 8, 14, 0.92), transparent);
+  color: var(--ink-4);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  pointer-events: none;
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.fld-ticker p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  animation: fld-line var(--dur-2) var(--ease) both;
+}
+.fld-ticker p.is-ok { color: var(--clear-dim); }
+.fld-ticker p.is-err { color: var(--alarm-dim); }
+@keyframes fld-line { from { opacity: 0; transform: translateY(4px); } }
+
+@media (max-width: 720px) {
+  .fld { min-height: 520px; }
+  .fld-node { width: 122px; margin-left: -61px; }
+  .fld-mark { width: 64px; height: 64px; }
+  .fld-glyph { width: 50px; height: 50px; }
+  .fld-glyph svg { width: 34px; height: 34px; }
+  .fld-lamp { width: 240px; height: 240px; margin: -120px 0 0 -120px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fld-node.is-looking .fld-ring-live,
+  .fld-node[data-severity="critical"] .fld-glyph { animation: none; }
+  .fld-stamp, .fld-halt, .fld-ticker p { animation: none; }
+}

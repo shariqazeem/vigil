@@ -1,8 +1,0 @@
-INVOICE #1042
-From: Shariq Shaukat, AI engineering
-To: Acme Retail Ltd, attn. finance@acme-retail.example
-Date: 2026-08-15   Due: 2026-08-30 (net 15)
-Line 1  Landing page redesign ............ USD 1,200.00
-Line 2  Checkout flow, 3 rounds .......... USD   800.00
-Total due ............................. USD 2,000.00
-Status: unpaid, 9 days overdue
