@@ -137,6 +137,63 @@ describe("what a policy can be made to say", () => {
   });
 });
 
+describe("the machine Warden itself is running on", () => {
+  /**
+   * The hole this closes, which was open on the live instance for about an hour.
+   *
+   * A service with no ssh key runs its operations LOCALLY, and `repo` and `process` are chosen by
+   * whoever registers it. So {repo: "/home/ubuntu/warden", process: "warden"} points `read_file` at
+   * Warden's own checkout — where the .env with the model key is — and `pm2_restart` at Warden
+   * itself. Path containment is no help: the containment is relative to a repo the attacker named.
+   */
+  it("refuses a checkout path on a service with no machine to reach", async () => {
+    asAnon("anon:attacker");
+    const res = await registerService(
+      post("http://x/api/services", { name: "innocent", url: "https://example.com/", repo: "/home/ubuntu/warden", posture: "may" }),
+    );
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("its own host");
+  });
+
+  it("refuses a process name the same way", async () => {
+    asAnon("anon:attacker2");
+    const res = await registerService(post("http://x/api/services", { name: "innocent", url: "https://example.com/", process: "warden", posture: "may" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("refuses adding one by editing afterwards, which is the same door", async () => {
+    asAnon("anon:attacker3");
+    const made = await registerService(post("http://x/api/services", { name: "plain", url: "https://example.com/", posture: "observe" }));
+    const id = ((await made.json()) as { id: string }).id;
+
+    const res = await patchService(patch(`http://x/api/services/${id}`, { repo: "/home/ubuntu/warden" }), params(id));
+    expect(res.status).toBe(400);
+    expect(getService(id)!.repo).toBeNull();
+  });
+
+  it("lets the operator allow it deliberately, for somebody watching their own box", async () => {
+    process.env.WARDEN_ALLOW_LOCAL_SERVICES = "1";
+    asAnon("anon:self-hoster");
+    const res = await registerService(
+      post("http://x/api/services", { name: "mine", url: "https://example.com/", repo: "/srv/app", process: "app", posture: "may" }),
+    );
+    expect(res.status).toBe(200);
+    const id = ((await res.json()) as { id: string }).id;
+    expect(getService(id)!.repo).toBe("/srv/app");
+    expect(getService(id)!.process).toBe("app");
+    delete process.env.WARDEN_ALLOW_LOCAL_SERVICES;
+  });
+
+  it("still refuses a service with no way at all of telling whether it is alright", async () => {
+    asAnon("anon:attacker4");
+    // A process name that is stripped leaves nothing behind, and that must be an error rather than
+    // a service registered with no checks on it.
+    const res = await registerService(post("http://x/api/services", { name: "nothing", process: "warden", posture: "may" }));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toMatch(/its own host|at least one way/);
+  });
+});
+
 describe("reaching a machine", () => {
   it("will not take an ssh key path from a form — only a name this Warden already holds", async () => {
     asAnon("anon:owner-3");

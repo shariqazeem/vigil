@@ -59,7 +59,7 @@ const EMPTY: Field = {
   posture: "ask",
 };
 
-export function NewService({ sshKeys, allowsPrivate, first }: { sshKeys: string[]; allowsPrivate: boolean; first: boolean }) {
+export function NewService({ sshKeys, allowsPrivate, allowsLocal, first }: { sshKeys: string[]; allowsPrivate: boolean; allowsLocal: boolean; first: boolean }) {
   const [f, setF] = useState<Field>(EMPTY);
   const [deep, setDeep] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -187,6 +187,13 @@ export function NewService({ sshKeys, allowsPrivate, first }: { sshKeys: string[
               <p className="nw-note">
                 This Warden holds no ssh keys, so it can watch over http but cannot reach a machine. Whoever runs it sets{" "}
                 <code className="mono">WARDEN_SSH_KEYS=&quot;prod:/path/to/key&quot;</code> to change that — a form never names a key file.
+                {allowsLocal ? null : (
+                  <>
+                    {" "}
+                    A checkout and a process name are not offered either: without a machine of yours to reach, they would point
+                    Warden at the host it is running on.
+                  </>
+                )}
               </p>
             ) : (
               <>
@@ -219,6 +226,7 @@ export function NewService({ sshKeys, allowsPrivate, first }: { sshKeys: string[
               </>
             )}
 
+            {sshKeys.length === 0 && !allowsLocal ? null : (
             <div className="nw-row">
               <label className="nw-field">
                 <span className="nw-label">
@@ -235,6 +243,7 @@ export function NewService({ sshKeys, allowsPrivate, first }: { sshKeys: string[
                 <span className="nw-hint">Lets it read the last commits and the files it names. It cannot read outside this path.</span>
               </label>
             </div>
+            )}
           </div>
         ) : null}
       </fieldset>

@@ -3,6 +3,7 @@ import { addProbe, addService, listServices } from "@/lib/db/warden";
 import { ASK_BEFORE_ACTING, DEFAULT_POLICY, OBSERVE_ONLY } from "@/lib/ops/policy";
 import { sshKeyPath } from "@/lib/ops/hosts";
 import { checkHost, checkProbeUrl } from "@/lib/net/targets";
+import { confineLocal } from "@/lib/ops/local";
 import { no, ok, ownerForWrite, readJson } from "@/lib/api";
 
 export const runtime = "nodejs";
@@ -53,13 +54,12 @@ export async function POST(req: Request) {
     return no(`One Warden watches ${MAX_PER_OWNER} services. That is not a licensing limit, it is a sweep that has to finish.`, 409);
   }
 
-  if (!b.url && !b.process) {
-    return no("Warden needs at least one way to tell whether this is alright: a URL it can ask, or a process it can look for.", 400, "url");
-  }
-
   // ── the ssh side, which is optional and is never a path from the browser ──
   let host = "local";
   let sshKey: string | null = null;
+  let repo = b.repo ?? null;
+  let process_ = b.process ?? null;
+  let nodeBin = b.nodeBin ?? null;
   if (b.sshKeyName) {
     const path = sshKeyPath(b.sshKeyName);
     if (!path) return no("This Warden does not hold a key by that name.", 400, "sshKeyName");
@@ -69,9 +69,21 @@ export async function POST(req: Request) {
     if (!verdict.ok) return no(verdict.reason!, 400, "host");
     host = b.host;
     sshKey = path;
-  } else if (b.process) {
-    // A process check with no machine to ask means pm2 on this machine, which is a real setup.
-    host = "local";
+  } else {
+    // No key means every operation would run on the machine Warden itself is running on, and the
+    // checkout and process name are the registrant's to choose — so this is where a stranger would
+    // point read_file at Warden's own .env. Refused unless the operator has allowed it.
+    const confined = confineLocal({ repo, process: process_, nodeBin });
+    if (confined.refused) return no(confined.refused, 400, b.repo ? "repo" : "process");
+    repo = confined.repo;
+    process_ = confined.process;
+    nodeBin = confined.nodeBin;
+  }
+
+  // Asked last, because what counts as "a way to tell" depends on what survived the rule above: a
+  // service that asked for a process check it is not allowed to have still needs a URL.
+  if (!b.url && !process_) {
+    return no("Warden needs at least one way to tell whether this is alright: a URL it can ask, or a process it can look for.", 400, "url");
   }
 
   if (b.url) {
@@ -85,9 +97,9 @@ export async function POST(req: Request) {
     matters: b.matters ?? null,
     host,
     sshKey,
-    repo: b.repo ?? null,
-    process: b.process ?? null,
-    nodeBin: b.nodeBin ?? null,
+    repo,
+    process: process_,
+    nodeBin,
     policy: POLICIES[b.posture],
   });
 
@@ -102,12 +114,12 @@ export async function POST(req: Request) {
       failuresToOpen: 2,
     });
   }
-  if (b.process) {
+  if (process_) {
     addProbe({
       serviceId: service.id,
       kind: "process",
       label: "the process is up",
-      spec: { process: b.process },
+      spec: { process: process_ },
       everySeconds: b.everySeconds,
       failuresToOpen: 1,
     });

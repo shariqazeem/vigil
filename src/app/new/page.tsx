@@ -3,6 +3,7 @@ import { currentOwner } from "@/lib/auth/session";
 import { listServices } from "@/lib/db/warden";
 import { sshKeyNames } from "@/lib/ops/hosts";
 import { privateTargetsAllowed } from "@/lib/net/targets";
+import { localServicesAllowed } from "@/lib/ops/local";
 import { NewService } from "./form";
 import "./new.css";
 
@@ -40,7 +41,7 @@ export default async function NewServicePage() {
         </p>
       </header>
 
-      <NewService sshKeys={sshKeyNames()} allowsPrivate={privateTargetsAllowed()} first={mine.length === 0} />
+      <NewService sshKeys={sshKeyNames()} allowsPrivate={privateTargetsAllowed()} allowsLocal={localServicesAllowed()} first={mine.length === 0} />
     </main>
   );
 }

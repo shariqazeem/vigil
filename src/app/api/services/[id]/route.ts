@@ -2,6 +2,7 @@ import { z } from "zod";
 import { canEdit, currentOwner } from "@/lib/auth/session";
 import { forgetService, getService, logEvent, renameService, touchService } from "@/lib/db/warden";
 import { describePolicy, sanitisePolicy } from "@/lib/ops/policy";
+import { confineLocal } from "@/lib/ops/local";
 import { no, ok, readJson, text } from "@/lib/api";
 
 export const runtime = "nodejs";
@@ -49,6 +50,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const parsed = Patch.safeParse(await readJson<unknown>(req));
   if (!parsed.success) return no(parsed.error.issues[0]?.message ?? "Warden could not read that change.", 400);
   const b = parsed.data;
+
+  // The same rule as registration, because editing is another way to arrive at the same place: a
+  // service with no ssh key runs everything on Warden's own machine, so it does not get a checkout
+  // path or a process name unless the operator has allowed local services.
+  if ((b.repo !== undefined || b.process !== undefined) && !service.sshKey) {
+    const confined = confineLocal({ repo: b.repo, process: b.process });
+    if (confined.refused) return no(confined.refused, 400, b.repo ? "repo" : "process");
+  }
 
   if (b.name !== undefined || b.matters !== undefined || b.repo !== undefined || b.process !== undefined) {
     renameService(id, {
