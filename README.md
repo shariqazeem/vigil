@@ -68,7 +68,7 @@ behind both.
 ```bash
 npm install --legacy-peer-deps
 npx vitest run
-# 11 files, 228 tests, ~1s
+# 15 files, 253 tests, ~1s
 
 npx vitest run src/agent/__tests__/gates.test.ts
 # the red team: a jailbroken sequence pushed through the real hooks and the real tools
@@ -343,7 +343,7 @@ throws, so after each attempt the test asserts *nothing was spawned*, *nothing l
 legitimate look, a diagnosis, an allowed restart — which does run and does write, because a
 red-team test that passes against a broken harness proves nothing.
 
-The whole suite is 228 tests across 11 files, about a second, fully offline: no network, no model,
+The whole suite is 253 tests across 15 files, about a second, fully offline: no network, no model,
 no process spawned.
 
 ## How it knows it worked
@@ -419,7 +419,12 @@ commit while explicitly declining to blame it. That is the tone the product is b
   happens while nobody is looking stops. This exists because the console lets anyone register a URL,
   and a URL that is always down would otherwise spend the model budget forever.
 - **Bedrock is wired but not what runs live.** Stated again here because it is the kind of thing a
-  README is tempted to blur.
+  README is tempted to blur. What you can check without taking anyone's word for it is
+  `npx vitest run src/agent/__tests__/model.test.ts`: it sets `BEDROCK_MODEL_ID` and asserts the
+  agents are built on a `BedrockModel` behind a Strands `ModelRouter` with the gateway as a
+  `FallbackStrategy`, that `BEDROCK_MODEL_ID_HEAVY` reaches the two judgement roles and not the
+  third, and that with no Bedrock configured the console does not print the word anywhere. Six
+  tests, no credentials, nothing called.
 - **One VM, three services, SQLite.** Nothing here has been tested at a scale it does not have.
 
 ## Setup
