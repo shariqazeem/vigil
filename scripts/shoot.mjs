@@ -107,6 +107,57 @@ await scene("quiet", async (page) => {
   await sleep(1500);
 });
 
+/* ── 1b. it is a product, not a window: register something and write its policy ── */
+
+await scene("console", async (page) => {
+  await page.goto(`${BASE}/new`, { waitUntil: "networkidle", timeout: 120_000 });
+  await sleep(2500);
+
+  // Typed at a readable speed, because this is the beat that shows it can be used rather than
+  // merely watched. The URL is a real public one so the checks that follow really pass.
+  await page.getByPlaceholder("The checkout API").click();
+  await page.keyboard.type("Example dot com", { delay: 55 });
+  await sleep(400);
+  await page.getByPlaceholder("Nobody can pay us.").click();
+  await page.keyboard.type("A public page, standing in for something of yours.", { delay: 30 });
+  await sleep(400);
+  await page.getByPlaceholder("https://example.com/health").click();
+  await page.keyboard.type("https://example.com/", { delay: 45 });
+  await sleep(1200);
+
+  await page.getByText("Fix what undoes itself").click();
+  await sleep(1400);
+  await page.getByRole("button", { name: /start watching|add it/i }).first().click();
+  await page.waitForURL(/\/s\//, { timeout: 60_000 });
+  await sleep(3000);
+
+  // The policy editor — every operation, and the sentence saying what granting it means.
+  await page.locator(".pe-ops").scrollIntoViewIfNeeded();
+  await sleep(1200);
+  await readDown(page, 900, 70, 90);
+  await sleep(1500);
+
+  // Set one operation to Never and watch the save bar rise.
+  const row = page.locator(".pe-op", { hasText: "redeploy_previous" });
+  await row.scrollIntoViewIfNeeded();
+  await sleep(1200);
+  await row.getByRole("button", { name: "Never" }).click();
+  await sleep(1800);
+  await page.getByRole("button", { name: /save policy/i }).click();
+  await sleep(2500);
+
+  // And the four nothing can turn on.
+  await page.locator(".pe-op.is-locked").first().scrollIntoViewIfNeeded();
+  await sleep(3000);
+
+  // Leave production as it was found.
+  const id = page.url().split("/s/")[1]?.split("?")[0];
+  if (id) {
+    await page.evaluate((sid) => fetch(`/api/services/${sid}`, { method: "DELETE" }), id);
+    console.log(`  console: removed the service it registered (${id})`);
+  }
+});
+
 /* ── 2. something breaks, for real ────────────────────────────────── */
 
 await scene("breaks", async (page) => {
