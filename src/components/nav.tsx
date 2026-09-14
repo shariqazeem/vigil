@@ -19,13 +19,13 @@ export async function Nav() {
       <div className="nav-in">
         <Link href="/" className="nav-brand">
           <span className="nav-mark" aria-hidden="true" />
-          Warden
+          <span className="nav-word">Warden</span>
         </Link>
 
         <div className="nav-links">
           <Link href="/" className="nav-link">Fleet</Link>
           <Link href="/activity" className="nav-link">Activity</Link>
-          <Link href="/settings" className="nav-link">Reach you</Link>
+          <Link href="/settings" className="nav-link">Reach&nbsp;you</Link>
           {waiting.length > 0 ? (
             <Link href="/#waiting" className="nav-link is-waiting">
               Waiting
@@ -35,7 +35,9 @@ export async function Nav() {
         </div>
 
         <Link href="/new" className="btn btn-sm nav-add">
-          {mine.length ? "Watch something else" : "Watch something"}
+          {/* The long form is the one that reads well; the short one is what fits a phone. */}
+          <span className="nav-add-long">{mine.length ? "Watch something else" : "Watch something"}</span>
+          <span className="nav-add-short" aria-hidden="true">Watch</span>
         </Link>
       </div>
     </nav>

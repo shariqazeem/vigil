@@ -32,15 +32,32 @@
 .sp-incidents { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
 .sp-incidents a {
   display: flex; align-items: center; gap: var(--s-3);
+  flex-wrap: wrap;
   padding: var(--s-3) var(--s-4);
   transition: transform var(--dur-1) var(--ease-spring), box-shadow var(--dur-1) var(--ease-out);
 }
 .sp-incidents a:hover { transform: translateY(-1px); box-shadow: var(--shadow-lift); }
-.sp-inc-t { font-size: var(--fs-small); flex: none; }
-.sp-inc-s { color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The title is what gives, not the chip and not the duration — so it shrinks and ellipses
+   rather than pushing the row wider than the screen, which is how this page grew a sideways
+   scrollbar on a phone. */
+.sp-inc-t { font-size: var(--fs-small); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-inc-s { color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 0; min-width: 0; }
 .sp-inc-d { color: var(--ink-muted); margin-left: auto; flex: none; }
 
 @media (max-width: 620px) { .sp-inc-s { display: none; } }
+
+/* A status chip is a whole phrase now ("fixed and verified", "waiting on you"), and a chip does
+   not wrap or shrink — so on a phone the row lets the title drop to its own line instead of the
+   three of them forcing the card wider than the screen. */
+@media (max-width: 620px) {
+  .sp-inc-t { flex: 1 0 100%; order: 3; }
+  .sp-inc-d { margin-left: 0; }
+}
+
+/* The one thing nothing on this page may do is make the page itself scroll sideways. The ops
+   table and the code wells get their own scrollers; everything else shrinks. */
+.sp { overflow-x: clip; }
+.in-table-wrap { max-width: 100%; }
 
 /* ── the policy editor: the centre of the product ─────────────────── */
 

@@ -40,7 +40,10 @@
 
 /* ── the fleet ────────────────────────────────────────────────────── */
 
-.hm-fleet { display: grid; gap: var(--s-4); margin-top: var(--s-7); }
+/* minmax(0, 1fr), not the default `auto`: a single-column grid sized to `auto` takes the max-content
+   width of its widest child, so one wide card silently widened the page instead of being made to
+   fit inside it. */
+.hm-fleet { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); margin-top: var(--s-7); }
 .hm-empty { color: var(--ink-muted); font-size: var(--fs-small); }
 .hm-empty code { background: var(--bg-sunk); padding: 2px 6px; border-radius: var(--r-sm); }
 .hm-quiet { margin: var(--s-6) 0 0; color: var(--ink-faint); font-size: var(--fs-small); text-align: center; }
@@ -54,7 +57,7 @@
 .sv-matters { margin: 4px 0 0; color: var(--ink-faint); font-size: var(--fs-small); max-width: 52ch; }
 
 .sv-probes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
-.sv-probe { display: flex; align-items: center; gap: var(--s-3); font-size: var(--fs-small); }
+.sv-probe { display: flex; align-items: center; gap: var(--s-3); font-size: var(--fs-small); min-width: 0; }
 .sv-led { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--ink-ghost); }
 .sv-led.is-ok { background: var(--ok); }
 .sv-led.is-down { background: var(--down); }
@@ -83,12 +86,13 @@
   display: flex;
   align-items: center;
   gap: var(--s-3);
+  flex-wrap: wrap;
   padding: var(--s-2) var(--s-3);
   border-radius: var(--r-sm);
   transition: background var(--dur-1) var(--ease-out);
 }
 .sv-incidents a:hover { background: var(--bg-sunk); }
-.sv-inc-t { color: var(--ink-muted); font-size: var(--fs-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv-inc-t { color: var(--ink-muted); font-size: var(--fs-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 0; min-width: 0; }
 .sv-inc-d { color: var(--ink-ghost); margin-left: auto; flex: none; }
 
 /* ── foot ─────────────────────────────────────────────────────────── */
@@ -102,6 +106,15 @@
   .sv-probe-l { min-width: 0; }
   .sv-probe-d { display: none; }
   .hm-stats { gap: var(--s-5); }
+  /* Half the history on a narrow screen. The marks are drawn oldest-first, so the ones dropped are
+     the oldest — a sparkline that loses its most recent readings would be worse than none. */
+  .sv-spark i:nth-child(-n+20) { display: none; }
+  .hm-h2 { display: block; }
+  .hm-h2-n { display: block; margin-top: 2px; }
+  /* A status chip is a whole phrase now and a chip never wraps or shrinks, so the title drops to
+     its own line rather than the three of them forcing the card wider than the screen. */
+  .sv-inc-t { flex: 1 0 100%; order: 3; }
+  .sv-inc-d { margin-left: 0; }
 }
 
 /* ── added when the console became the product rather than a view of it ── */

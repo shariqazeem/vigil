@@ -192,10 +192,20 @@ a { color: inherit; text-decoration: none; }
 }
 .nav-add { margin-left: auto; }
 
-@media (max-width: 560px) {
-  .nav-links { margin-left: 0; }
-  .nav-link { padding: 5px 8px; }
-  .nav-add { font-size: 11px; padding: 6px 10px; }
+.nav-link { white-space: nowrap; }
+.nav-add-short { display: none; }
+
+/* A phone: the mark stands in for the word, and the button says the short thing. Nothing wraps,
+   nothing is clipped, and the links scroll rather than pushing the button off the screen. */
+@media (max-width: 640px) {
+  .nav-in { gap: var(--s-3); padding-inline: var(--s-4); }
+  .nav-word { display: none; }
+  .nav-links { margin-left: 0; overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-link { padding: 5px 9px; }
+  .nav-add { padding: 6px 12px; }
+  .nav-add-long { display: none; }
+  .nav-add-short { display: inline; }
 }
 
 /* ── check now: the sweep, as it arrives ──────────────────────────── */
@@ -217,3 +227,14 @@ a { color: inherit; text-decoration: none; }
 .cn-ms { color: var(--ink-ghost); margin-left: auto; flex: none; }
 .cn-done { padding: var(--s-2) var(--s-3); font-size: var(--fs-small); color: var(--ink-muted); }
 @media (max-width: 560px) { .cn-l { min-width: 0; } .cn-d { display: none; } }
+
+/*
+ * A page must never scroll sideways.
+ *
+ * This has been reintroduced three times in one afternoon, always the same way: a flex row holding
+ * a .chip, some text and a number. A chip does not wrap and does not shrink, so when the status
+ * labels became phrases ("fixed and verified" rather than "resolved") every such row grew past the
+ * screen and took the page with it. The rule below is the backstop — the row-level fixes are the
+ * actual answer, because clipping is a worse failure than wrapping.
+ */
+body { overflow-x: clip; }
