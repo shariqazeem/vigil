@@ -1,29 +1,39 @@
 import Link from "next/link";
-import { allServices, listIncidents, listProbes, openIncidents, pendingDecisions, policyOf, readingsFor } from "@/lib/db/warden";
+import { currentOwner } from "@/lib/auth/session";
+import { allServices, listIncidents, listProbes, listServices, openIncidents, pendingDecisions, policyOf, readingsFor } from "@/lib/db/warden";
 import { POSTURE_WORDS, posture } from "@/lib/ops/policy";
 import type { Service } from "@/lib/db/schema";
-import "./home.css";
+import { CheckNow } from "@/components/check-now";
 import { chipClass, statusChip } from "@/lib/incident-status";
+import "./home.css";
 
 export const dynamic = "force-dynamic";
 
 /**
- * THE CONSOLE. Every service Warden watches, and what it has done about them.
+ * THE CONSOLE. Every service Warden watches for you, and what it has done about them.
  *
  * The default state of this page is the point of the product: a column of green, a row of quiet
  * nights, and nothing asking for you. It is designed to be boring, and to stop being boring in
  * exactly one way — an amber card at the top when Warden has stopped and needs an answer.
+ *
+ * Two fleets, and the distinction is load-bearing. YOURS is whatever you have registered, kept
+ * behind a signed cookie. THE PUBLIC FLEET is the three services registered under the owner key
+ * "demo", which anyone may watch and nobody but their owner may change — it is the live proof, and
+ * it is the first thing a person sees before they have anything of their own.
  */
 export default async function Console() {
-  const services = allServices();
-  const waiting = pendingDecisions();
-  const open = openIncidents();
+  const owner = await currentOwner();
+  const mine = owner ? listServices(owner.key) : [];
+  const demo = allServices().filter((s) => s.ownerKey === "demo");
+  const visible = [...mine, ...demo];
+  const waiting = pendingDecisions().filter((d) => visible.some((s) => s.id === d.serviceId));
 
-  const looks = services.reduce((n, s) => n + listProbes(s.id).reduce((m, p) => m + readingsFor(p.id, 200).length, 0), 0);
-  const all = services.flatMap((s) => listIncidents(s.id, 200));
+  const fleet = mine.length ? mine : demo;
+  const looks = fleet.reduce((n, s) => n + listProbes(s.id).reduce((m, p) => m + readingsFor(p.id, 200).length, 0), 0);
+  const all = fleet.flatMap((s) => listIncidents(s.id, 200));
   const fixed = all.filter((i) => i.status === "resolved");
-  // Deliberately not an uptime percentage. This fleet is broken on purpose several times a day to
-  // test the operator, so a "% clean" figure would say more about the testing than the software.
+  // Deliberately not an uptime percentage. The public fleet is broken on purpose several times a day
+  // to test the operator, so a "% clean" figure would say more about the testing than the software.
   const medianDown = median(fixed.map((i) => i.downSeconds ?? 0).filter(Boolean));
 
   return (
@@ -36,17 +46,21 @@ export default async function Console() {
           the fix by re-running the check that failed — and wakes you only when the answer is genuinely yours to give.
         </p>
         <div className="hm-stats">
-          <Stat n={String(services.length)} of="services watched" />
+          <Stat n={String(fleet.length)} of={mine.length ? "yours, watched" : "services watched"} />
           <Stat n={looks.toLocaleString()} of="checks run" />
           <Stat n={String(all.length)} of={`incident${all.length === 1 ? "" : "s"}`} />
           <Stat n={String(fixed.length)} of={`closed without waking anyone${medianDown ? ` · median ${fmt(medianDown)} down` : ""}`} />
         </div>
+        <div className="hm-do">
+          <Link href="/new" className="btn btn-accent">{mine.length ? "Watch something else" : "Watch something of yours"}</Link>
+          <CheckNow />
+        </div>
       </header>
 
       {waiting.length > 0 ? (
-        <section className="hm-waiting">
+        <section className="hm-waiting" id="waiting">
           {waiting.map((d) => {
-            const svc = services.find((s) => s.id === d.serviceId);
+            const svc = visible.find((s) => s.id === d.serviceId);
             return (
               <Link key={d.id} href={d.incidentId ? `/i/${d.incidentId}` : "/"} className="hm-wait card">
                 <p className="micro hm-wait-k">Warden stopped · {svc?.name ?? "a service"}</p>
@@ -59,20 +73,39 @@ export default async function Console() {
         </section>
       ) : null}
 
-      <section className="hm-fleet">
-        {services.map((s) => (
-          <ServiceCard key={s.id} service={s} />
-        ))}
-        {services.length === 0 ? (
-          <p className="hm-empty">
-            Nothing is registered yet. Run <code className="mono">npx tsx --env-file=.env scripts/warden.ts register</code> to point
-            Warden at something.
+      {mine.length ? (
+        <section className="hm-fleet">
+          <h2 className="hm-h2">Yours</h2>
+          {mine.map((s) => (
+            <ServiceCard key={s.id} service={s} />
+          ))}
+        </section>
+      ) : (
+        <section className="hm-start card">
+          <h2 className="hm-start-h">Nothing of yours yet.</h2>
+          <p className="hm-start-p">
+            Give Warden a URL and it starts checking. Give it the machine and the process as well and it can read the logs, the
+            process table and the last few commits when that URL stops answering — and, if you let it, put the thing back up and
+            prove it by asking the check again.
           </p>
-        ) : null}
-      </section>
+          <p className="hm-start-p">
+            No account and no email: a signed cookie makes a service yours. Below is the fleet this Warden actually watches, live —
+            it is not a screenshot, and the incidents in it really happened.
+          </p>
+          <Link href="/new" className="btn btn-accent">Point it at something</Link>
+        </section>
+      )}
 
-      {open.length === 0 && waiting.length === 0 && services.length > 0 ? (
-        <p className="hm-quiet">Everything is up. Warden is watching, and there is nothing for you to do.</p>
+      {demo.length ? (
+        <section className="hm-fleet">
+          <h2 className="hm-h2">
+            {mine.length ? "The public fleet" : "Watching, right now"}
+            <span className="hm-h2-n">anyone can watch these · nobody but their owner can change them</span>
+          </h2>
+          {demo.map((s) => (
+            <ServiceCard key={s.id} service={s} />
+          ))}
+        </section>
       ) : null}
 
       <footer className="hm-foot">
@@ -104,18 +137,19 @@ function ServiceCard({ service }: { service: Service }) {
   const policy = policyOf(service);
   const history = listIncidents(service.id, 60);
   const stance = POSTURE_WORDS[posture(policy)];
+  const paused = service.state === "paused";
 
-  const state = open.length ? "down" : probes.length ? "ok" : "unknown";
+  const state = paused ? "unknown" : open.length ? "down" : probes.length ? "ok" : "unknown";
 
   return (
     <article className={`sv card is-${state}`}>
       <header className="sv-head">
         <div>
-          <h2 className="sv-name"><Link href={`/s/${service.id}`}>{service.name}</Link></h2>
+          <h3 className="sv-name"><Link href={`/s/${service.id}`}>{service.name}</Link></h3>
           {service.matters ? <p className="sv-matters">{service.matters}</p> : null}
         </div>
         <span className={`chip ${state === "ok" ? "is-ok" : state === "down" ? "is-down" : "is-unknown"}`}>
-          {state === "ok" ? "up" : state === "down" ? `${open.length} open` : "no checks"}
+          {paused ? "paused" : state === "ok" ? "up" : state === "down" ? `${open.length} open` : "no checks"}
         </span>
       </header>
 
@@ -140,6 +174,7 @@ function ServiceCard({ service }: { service: Service }) {
             </li>
           );
         })}
+        {probes.length === 0 ? <li className="sv-probe sv-none">No checks yet — nothing can be said about this one honestly.</li> : null}
       </ul>
 
       <footer className="sv-foot">

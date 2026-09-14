@@ -92,6 +92,13 @@ export interface OperationDef<I extends z.ZodTypeAny> {
   okCodes?: number[];
   /** how this reads in an incident timeline, in plain words */
   describe: (input: z.infer<I>, t: Target) => string;
+  /**
+   * What granting this actually means, for the person writing the policy. A policy editor that
+   * lists sixteen identifiers is one nobody can use honestly: you cannot agree to
+   * `redeploy_previous` if nothing on the screen says it checks out the previous commit and
+   * restarts. One sentence, present tense, no jargon.
+   */
+  does: string;
   input: I;
   /** null means the operation is implemented in-process rather than as a command */
   spawn: ((input: z.infer<I>, t: Target) => Spawn) | null;
@@ -109,6 +116,7 @@ export const OPERATIONS = {
 
   http_probe: def({
     name: "http_probe",
+    does: "Asks a URL and reports the status and how long it took. Reads nothing else.",
     risk: "read",
     input: z.object({
       url: z.string().url(),
@@ -142,6 +150,7 @@ export const OPERATIONS = {
 
   pm2_list: def({
     name: "pm2_list",
+    does: "Lists the processes on the machine with their status, uptime and restart count.",
     risk: "read",
     input: z.object({}),
     describe: () => "pm2 jlist",
@@ -169,6 +178,7 @@ export const OPERATIONS = {
 
   pm2_logs: def({
     name: "pm2_logs",
+    does: "Reads the last lines of a process's output and error logs.",
     risk: "read",
     input: z.object({
       process: z.string().regex(NAME),
@@ -189,6 +199,7 @@ export const OPERATIONS = {
 
   git_log: def({
     name: "git_log",
+    does: "Reads the recent commits in the checkout \u2014 what landed, when, and by whom.",
     risk: "read",
     input: z.object({ count: z.coerce.number().int().min(1).max(30).default(10) }),
     describe: (i) => `git log -n ${i.count}`,
@@ -208,6 +219,7 @@ export const OPERATIONS = {
 
   git_show: def({
     name: "git_show",
+    does: "Reads one commit's diff, to see what a change actually did.",
     risk: "read",
     input: z.object({ ref: z.string().regex(REF), maxBytes: z.coerce.number().int().min(500).max(20_000).default(6_000) }),
     describe: (i) => `git show ${i.ref}`,
@@ -219,6 +231,7 @@ export const OPERATIONS = {
 
   read_file: def({
     name: "read_file",
+    does: "Reads one file from inside the service's checkout. It cannot read outside it.",
     risk: "read",
     input: z.object({ path: z.string().min(1).max(300), maxBytes: z.coerce.number().int().min(200).max(80_000).default(20_000) }),
     describe: (i) => `read ${i.path}`,
@@ -231,6 +244,7 @@ export const OPERATIONS = {
 
   grep_repo: def({
     name: "grep_repo",
+    does: "Searches the checkout for a string, to find where something is configured.",
     risk: "read",
     // grep exits 1 when it simply found nothing. That is an answer, not a failure.
     okCodes: [0, 1],
@@ -250,6 +264,7 @@ export const OPERATIONS = {
 
   disk_free: def({
     name: "disk_free",
+    does: "Reads how much disk is left, because a full disk looks like everything else.",
     risk: "read",
     input: z.object({}),
     describe: () => "df -h /",
@@ -260,6 +275,7 @@ export const OPERATIONS = {
 
   pm2_restart: def({
     name: "pm2_restart",
+    does: "Restarts the process. Undoes itself: the same code comes back up.",
     risk: "reversible",
     input: z.object({ process: z.string().regex(NAME) }),
     describe: (i) => `restart ${i.process}`,
@@ -271,6 +287,7 @@ export const OPERATIONS = {
 
   pm2_start: def({
     name: "pm2_start",
+    does: "Starts the process when it is stopped. Undoes itself.",
     risk: "reversible",
     input: z.object({ process: z.string().regex(NAME) }),
     describe: (i) => `start ${i.process}`,
@@ -282,6 +299,7 @@ export const OPERATIONS = {
 
   run_tests: def({
     name: "run_tests",
+    does: "Runs the test suite in the checkout and reads the result. Changes nothing.",
     risk: "reversible",
     input: z.object({ script: z.enum(["test", "typecheck", "lint"]).default("test") }),
     describe: (i) => `npm run ${i.script}`,
@@ -295,6 +313,7 @@ export const OPERATIONS = {
 
   redeploy_previous: def({
     name: "redeploy_previous",
+    does: "Checks out the previous commit and restarts. This changes which code is running.",
     risk: "disruptive",
     input: z.object({ process: z.string().regex(NAME) }),
     describe: (i) => `roll ${i.process} back to the previous build`,
@@ -309,6 +328,7 @@ export const OPERATIONS = {
 
   db_migrate: def({
     name: "db_migrate",
+    does: "Would run database migrations. Refused by name \u2014 a migration is not undone by a restart.",
     risk: "forbidden",
     input: z.object({}),
     describe: () => "run a database migration",
@@ -316,6 +336,7 @@ export const OPERATIONS = {
   }),
   delete_data: def({
     name: "delete_data",
+    does: "Would delete data. Refused by name. There is no incident this is the answer to.",
     risk: "forbidden",
     input: z.object({}),
     describe: () => "delete data",
@@ -323,6 +344,7 @@ export const OPERATIONS = {
   }),
   rotate_secret: def({
     name: "rotate_secret",
+    does: "Would rotate a credential. Refused by name \u2014 it breaks everything still holding the old one.",
     risk: "forbidden",
     input: z.object({}),
     describe: () => "rotate a credential",
@@ -330,6 +352,7 @@ export const OPERATIONS = {
   }),
   destroy_infra: def({
     name: "destroy_infra",
+    does: "Would destroy infrastructure. Refused by name, and listed here so you can see it is.",
     risk: "forbidden",
     input: z.object({}),
     describe: () => "destroy or replace infrastructure",
@@ -450,7 +473,7 @@ export async function execute(name: OperationName, rawInput: unknown, target: Ta
  * model a list of names and letting it guess the shape is how you get `lines: "120"` and a rejected
  * call; the shape is right here, so there is nothing to guess.
  */
-export function catalogue(): { name: string; risk: Risk; takes: Record<string, string> }[] {
+export function catalogue(): { name: string; risk: Risk; does: string; takes: Record<string, string> }[] {
   return OPERATION_NAMES.map((n) => {
     const o = OPERATIONS[n] as OperationDef<z.ZodTypeAny>;
     const shape = (o.input as unknown as { shape?: Record<string, z.ZodTypeAny> }).shape ?? {};
@@ -462,7 +485,7 @@ export function catalogue(): { name: string; risk: Risk; takes: Record<string, s
       const note = (field.description ?? "").slice(0, 90);
       takes[key] = `${inner}${optional ? " (optional)" : " (required)"}${note ? ` — ${note}` : ""}`;
     }
-    return { name: n, risk: o.risk, takes };
+    return { name: n, risk: o.risk, does: o.does, takes };
   });
 }
 

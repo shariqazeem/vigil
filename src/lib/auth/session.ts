@@ -66,3 +66,16 @@ export function canView(ownerKey: string, owner: Owner | null): boolean {
   if (ownerKey === "demo") return true;
   return owner?.key === ownerKey;
 }
+
+/**
+ * Changing something is NOT the same as seeing it, and the difference is the whole reason the demo
+ * fleet can be public. Anyone may watch Warden work on those three services; nobody but their owner
+ * may rewrite a policy, add a probe or delete one. Without this, a stranger could take SAGE off
+ * OBSERVE_ONLY — the single thing about this deployment that must never happen.
+ *
+ * Note what is missing: there is no `ownerKey === "demo"` branch. That is deliberate and it is the
+ * only difference from canView.
+ */
+export function canEdit(ownerKey: string, owner: Owner | null): boolean {
+  return !!owner && owner.key === ownerKey;
+}

@@ -50,6 +50,29 @@ export const listServices = (ownerKey: string): Service[] =>
   db.select().from(services).where(eq(services.ownerKey, ownerKey)).orderBy(services.createdAt).all();
 export const allServices = (): Service[] => db.select().from(services).orderBy(services.createdAt).all();
 
+export function renameService(sid: string, patch: Partial<Pick<Service, "name" | "matters" | "repo" | "process">>): void {
+  db.update(services).set({ ...patch, updatedAt: now() }).where(eq(services.id, sid)).run();
+}
+
+/**
+ * Stop watching something, and take its history with it. Unlike a probe, a service nobody watches
+ * any more has no reason to sit on the board — and its readings are about a thing its owner has
+ * said they are done with. Everything attached goes, in one transaction, so a half-deleted service
+ * cannot leave incidents pointing at a row that is not there.
+ */
+export function forgetService(sid: string): void {
+  db.transaction((tx) => {
+    tx.delete(readings).where(eq(readings.serviceId, sid)).run();
+    tx.delete(actions).where(eq(actions.serviceId, sid)).run();
+    tx.delete(decisions).where(eq(decisions.serviceId, sid)).run();
+    tx.delete(standing).where(eq(standing.serviceId, sid)).run();
+    tx.delete(events).where(eq(events.serviceId, sid)).run();
+    tx.delete(incidents).where(eq(incidents.serviceId, sid)).run();
+    tx.delete(probes).where(eq(probes.serviceId, sid)).run();
+    tx.delete(services).where(eq(services.id, sid)).run();
+  });
+}
+
 export function touchService(sid: string, patch: Partial<Pick<Service, "state" | "lastSweptAt" | "policy" | "matters">> = {}): void {
   db.update(services).set({ ...patch, updatedAt: now() }).where(eq(services.id, sid)).run();
 }
@@ -77,6 +100,13 @@ export function addProbe(p: { serviceId: string; kind: string; label: string; sp
 }
 
 export const listProbes = (sid: string): Probe[] => db.select().from(probes).where(and(eq(probes.serviceId, sid), eq(probes.enabled, true))).all();
+
+/**
+ * Probes are retired, never deleted. Their readings are the record of what was true, and a check
+ * you stopped running is still the reason an incident opened last Tuesday. `listProbes` already
+ * filters on `enabled`, so retiring one removes it from every sweep and every card.
+ */
+export const retireProbe = (pid: string): void => void db.update(probes).set({ enabled: false }).where(eq(probes.id, pid)).run();
 export const getProbe = (pid: string): Probe | null => db.select().from(probes).where(eq(probes.id, pid)).get() ?? null;
 
 export function recordReading(r: { probeId: string; serviceId: string; ok: boolean; detail: string; latencyMs: number; incidentId?: string | null }): Reading {

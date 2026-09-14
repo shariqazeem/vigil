@@ -58,7 +58,6 @@ export const ASK_BEFORE_ACTING: Policy = {
   note: "Look at anything. Work out the fix and show me exactly what you would run — but ask me before you run it.",
 };
 
-/** A service Warden may only read. Used for anything it does not own — someone else's production. */
 /**
  * What this policy amounts to, in three words, for the card on the board.
  *
@@ -68,6 +67,34 @@ export const ASK_BEFORE_ACTING: Policy = {
  * catalogue for what counts as "changes anything" means a new reversible operation is covered the
  * day it is added, rather than the day someone remembers to update a list in a component.
  */
+/**
+ * A policy arriving from outside — a form, an import, an API call — made safe to store.
+ *
+ * Storing is not deciding: `decide()` refuses a forbidden operation whatever any policy says, so
+ * nothing here is load-bearing for safety. It is load-bearing for HONESTY. A policy row that
+ * appears to grant `delete_data` would be shown on the service page as granted, and a person would
+ * reasonably believe they had granted it. So the four forbidden operations are stripped out of
+ * `may` and `ask` and pinned into `never`, where the page will say what is true: never, under any
+ * policy. Anything the catalogue has never heard of is dropped rather than stored as a lie about a
+ * capability.
+ */
+export function sanitisePolicy(input: unknown): Policy {
+  const parsed = PolicySchema.safeParse(input);
+  if (!parsed.success) return OBSERVE_ONLY;
+  const p = parsed.data;
+  const known = (xs: string[]) => xs.filter((op) => KNOWN.has(op));
+  const forbidden = OPERATION_NAMES.filter((n) => riskOf(n) === "forbidden");
+  const strip = (xs: string[]) => known(xs).filter((op) => !forbidden.includes(op as OperationName));
+  const never = [...new Set([...known(p.never), ...forbidden])];
+  const ask = strip(p.ask).filter((op) => !never.includes(op));
+  return {
+    ...p,
+    may: strip(p.may).filter((op) => !never.includes(op) && !ask.includes(op)),
+    ask,
+    never,
+  };
+}
+
 export type Posture = "observe" | "ask-first" | "may-act";
 
 export function posture(p: Policy): Posture {
@@ -88,6 +115,7 @@ export const POSTURE_WORDS: Record<Posture, { label: string; tone: "unknown" | "
   "may-act": { label: "may act", tone: "accent" },
 };
 
+/** A service Warden may only read. Used for anything it does not own — someone else's production. */
 export const OBSERVE_ONLY: Policy = {
   may: ["http_probe", "pm2_list", "pm2_logs", "git_log", "git_show", "read_file", "grep_repo", "disk_free"],
   ask: [],

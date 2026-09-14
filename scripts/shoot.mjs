@@ -16,7 +16,7 @@
  *   ffmpeg -i var/shots/incident.webm -c:v libx264 -crf 18 -pix_fmt yuv420p var/shots/incident.mp4
  */
 import { execFile } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
@@ -75,13 +75,18 @@ async function scene(name, body) {
   const video = page.video();
   await ctx.close();
   await browser.close();
-  // Playwright names videos by a content hash; save each under its scene name so an edit does not
-  // begin by guessing which of four hashes is the one with the incident in it.
+  // Playwright names videos by a content hash; give each one its scene name so an edit does not
+  // begin by guessing which of four hashes holds the incident. The file is only finished once the
+  // context is closed, and saveAs() needs a live browser — so this renames it on disk instead,
+  // which works after everything is shut down and cannot lose a take to a closed-target error.
   if (video) {
     const to = join(OUT, `${name}.webm`);
-    await video.saveAs(to);
-    await video.delete().catch(() => {});
-    console.log(`  ${name}: ${Math.round((Date.now() - t0) / 1000)}s → ${to}`);
+    try {
+      renameSync(await video.path(), to);
+      console.log(`  ${name}: ${Math.round((Date.now() - t0) / 1000)}s → ${to}`);
+    } catch (e) {
+      console.error(`  ${name}: recorded, but could not be renamed (${e.message})`);
+    }
   }
 }
 
@@ -161,8 +166,29 @@ await scene("audit", async (page) => {
   await sleep(2500);
 });
 
-if (!KEEP_BROKEN) {
+/**
+ * Put production back. This runs on the way out of a clean shoot AND out of a crashed one: the
+ * script stops a real service on a real machine, so anything that throws between there and here
+ * would otherwise leave a public site down and walk away. It has already done that once.
+ */
+async function restore() {
+  if (KEEP_BROKEN) return;
   console.log("  restoring: starting the service and the sweep…");
-  await vm(`pm2 start ${TARGET} >/dev/null 2>&1; pm2 start warden-sweep >/dev/null 2>&1; true`);
+  await vm(`pm2 start ${TARGET} >/dev/null 2>&1; pm2 start warden-sweep >/dev/null 2>&1; true`).catch((e) => {
+    console.error(`  COULD NOT RESTORE ${TARGET}: ${e.message}\n  run this yourself: pm2 start ${TARGET} && pm2 start warden-sweep`);
+  });
 }
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.once(signal, async () => {
+    await restore();
+    process.exit(130);
+  });
+}
+process.on("uncaughtException", async (e) => {
+  console.error(`\n${e.stack ?? e.message}`);
+  await restore();
+  process.exit(1);
+});
+
+await restore();
 console.log(`\nstills and video in ${OUT}`);

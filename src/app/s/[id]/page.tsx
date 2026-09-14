@@ -1,14 +1,26 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { canView, currentOwner } from "@/lib/auth/session";
+import { canEdit, canView, currentOwner } from "@/lib/auth/session";
 import { listIncidents, listProbes, listStanding, parseSpec, policyOf, readingsFor, getService } from "@/lib/db/warden";
-import { decide } from "@/lib/ops/policy";
+import { POSTURE_WORDS, decide, posture } from "@/lib/ops/policy";
+import { CheckNow } from "@/components/check-now";
+import { PolicyEditor, ProbeAdder, RetireProbe, ServiceSettings } from "./manage";
 import { catalogue } from "@/lib/ops/operations";
 import "../../i/[id]/incident.css";
 import "./service.css";
 import { chipClass, statusChip } from "@/lib/incident-status";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const service = getService(id);
+  if (!service) return { title: "Not found — Warden" };
+  return {
+    title: `${service.name} — Warden`,
+    description: service.matters ?? `What Warden checks on ${service.name}, what it may do about it, and everything it has done.`,
+  };
+}
 
 /**
  * ONE SERVICE. What Warden is checking, what it has been told it may do, and everything that has
@@ -18,12 +30,14 @@ export const dynamic = "force-dynamic";
  * service's policy says about each. It is the page you would show somebody who asked "so what can
  * this thing actually do to my box" — and the honest answer is a finite list.
  */
-export default async function ServicePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ServicePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { id } = await params;
+  const welcome = "welcome" in (await searchParams);
   const service = getService(id);
   if (!service) notFound();
   const owner = await currentOwner();
   if (!canView(service.ownerKey, owner)) notFound();
+  const mine = canEdit(service.ownerKey, owner);
 
   const probes = listProbes(id);
   const policy = policyOf(service);
@@ -53,6 +67,19 @@ export default async function ServicePage({ params }: { params: Promise<{ id: st
         <Link href="/">warden</Link> / service
       </p>
 
+      {welcome ? (
+        <div className="sp-welcome card">
+          <p className="micro sp-welcome-k">Registered</p>
+          <p className="sp-welcome-t">
+            Warden is watching this now. The next sweep picks it up on its own — or press <b>Check it now</b> to ask straight away.
+          </p>
+          <p className="sp-welcome-b">
+            Below is everything it is able to do here, and every line of it is yours to change. Nothing on this page is a
+            description of what Warden intends; it is what the policy engine will actually answer when the agent asks.
+          </p>
+        </div>
+      ) : null}
+
       <header className="sp-head">
         <h1 className="sp-title">{service.name}</h1>
         {service.matters ? <p className="sp-matters">{service.matters}</p> : null}
@@ -61,6 +88,14 @@ export default async function ServicePage({ params }: { params: Promise<{ id: st
           {service.process ? ` · pm2 ${service.process}` : ""}
           {service.repo ? ` · ${service.repo}` : ""}
         </p>
+        <div className="sp-actions">
+          <span className={`chip is-${POSTURE_WORDS[posture(policy)].tone}`}>{POSTURE_WORDS[posture(policy)].label}</span>
+          {service.state === "paused" ? (
+            <span className="chip is-unknown">paused — no sweep touches this</span>
+          ) : (
+            <CheckNow serviceId={service.id} label="Check it now" />
+          )}
+        </div>
       </header>
 
       <section className="sp-sec">
@@ -88,6 +123,7 @@ export default async function ServicePage({ params }: { params: Promise<{ id: st
                   {p.failuresToOpen} failure{p.failuresToOpen === 1 ? "" : "s"} in a row
                 </p>
                 {last ? <p className="sp-probe-last mono">{last.detail}</p> : null}
+                {mine ? <RetireProbe probeId={p.id} label={p.label} /> : null}
                 <span className="sp-spark" aria-hidden="true">
                   {rs
                     .slice(0, 60)
@@ -101,42 +137,51 @@ export default async function ServicePage({ params }: { params: Promise<{ id: st
           })}
           {probes.length === 0 ? <li className="sp-empty">No checks yet, so there is nothing Warden can honestly say about this.</li> : null}
         </ul>
+        {mine ? <ProbeAdder serviceId={service.id} hasProcess={!!service.process} /> : null}
       </section>
 
       <section className="sp-sec">
         <h2 className="in-h2">What it may do here</h2>
         <p className="in-lede">
-          {policy.note ? <em>&ldquo;{policy.note}&rdquo;</em> : null} At most {policy.maxActionsPerIncident} action
-          {policy.maxActionsPerIncident === 1 ? "" : "s"} on one incident, and no acting twice within {policy.cooldownMinutes} minutes. This is the
-          whole list — there is nothing else Warden is able to do.
+          {mine
+            ? "This is the whole list — there is nothing else Warden is able to do. Change any line and press save; nothing is applied until you do."
+            : "This is the whole list — there is nothing else Warden is able to do."}
         </p>
-        <div className="in-table-wrap">
-          <table className="in-table sp-ops">
-            <thead>
-              <tr>
-                <th>operation</th>
-                <th>risk</th>
-                <th>on this service</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ops.map((o) => {
-                const v = verdictFor(o.name);
-                return (
-                  <tr key={o.name} className={o.risk === "forbidden" ? "is-refused" : ""}>
-                    <td className="mono in-op">{o.name}</td>
-                    <td>
-                      <span className={`chip ${o.risk === "read" ? "is-unknown" : o.risk === "reversible" ? "is-accent" : o.risk === "disruptive" ? "is-warn" : "is-down"}`}>{o.risk}</span>
-                    </td>
-                    <td>
-                      <span className={`chip ${v.tone}`}>{v.label}</span>
-                    </td>
+        {mine ? (
+          <PolicyEditor serviceId={service.id} ops={ops.map((o) => ({ name: o.name, risk: o.risk, does: o.does }))} policy={policy} />
+        ) : (
+          <>
+            <p className="in-lede">
+              {policy.note ? <em>&ldquo;{policy.note}&rdquo;</em> : null} At most {policy.maxActionsPerIncident} action
+              {policy.maxActionsPerIncident === 1 ? "" : "s"} on one incident, and no acting twice within {policy.cooldownMinutes} minutes.
+            </p>
+            <div className="in-table-wrap">
+              <table className="in-table sp-ops">
+                <thead>
+                  <tr>
+                    <th>operation</th>
+                    <th>what it does</th>
+                    <th>on this service</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {ops.map((o) => {
+                    const v = verdictFor(o.name);
+                    return (
+                      <tr key={o.name} className={o.risk === "forbidden" ? "is-refused" : ""}>
+                        <td className="mono in-op">{o.name}</td>
+                        <td className="sp-does">{o.does}</td>
+                        <td>
+                          <span className={`chip ${v.tone}`}>{v.label}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </section>
 
       {standing.length ? (
@@ -175,6 +220,13 @@ export default async function ServicePage({ params }: { params: Promise<{ id: st
           {incidents.length === 0 ? <li className="sp-empty">Nothing has gone wrong yet.</li> : null}
         </ul>
       </section>
+
+      {mine ? (
+        <section className="sp-sec">
+          <h2 className="in-h2">This service</h2>
+          <ServiceSettings serviceId={service.id} name={service.name} paused={service.state === "paused"} />
+        </section>
+      ) : null}
     </main>
   );
 }

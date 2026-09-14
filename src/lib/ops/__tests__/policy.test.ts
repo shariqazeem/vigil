@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { OPERATIONS, OPERATION_NAMES, riskOf, type OperationName } from "../operations";
-import { ASK_BEFORE_ACTING, DEFAULT_POLICY, OBSERVE_ONLY, PolicySchema, decide, describePolicy, parsePolicy, posture, type Policy, type PolicyContext } from "../policy";
+import { OPERATIONS, OPERATION_NAMES, catalogue, riskOf, type OperationName } from "../operations";
+import { ASK_BEFORE_ACTING, DEFAULT_POLICY, OBSERVE_ONLY, PolicySchema, decide, describePolicy, parsePolicy, posture, sanitisePolicy, type Policy, type PolicyContext } from "../policy";
 
 /**
  * `decide()` is the whole product in one pure function, so it is tested the way a pure function
@@ -346,5 +346,80 @@ describe("the posture a card shows", () => {
       const anyAllowed = changing.some((op) => decide(op, policy, { actionsTaken: 0, minutesSinceLastAction: null }).verdict === "allow");
       expect(posture(policy) === "may-act", `${describePolicy(policy).slice(0, 40)}`).toBe(anyAllowed);
     }
+  });
+});
+
+/**
+ * The policy editor renders one sentence per operation. If an operation has none, a person is being
+ * asked to grant a capability the screen will not describe — so this is a build-breaking omission,
+ * not a cosmetic one.
+ */
+describe("every operation says what granting it means", () => {
+  it.each(OPERATION_NAMES)("%s has a sentence", (name) => {
+    const entry = catalogue().find((o) => o.name === name)!;
+    expect(entry.does.length, `${name} needs a "does"`).toBeGreaterThan(20);
+    expect(entry.does.trim().endsWith("."), `${name}'s sentence should be a sentence`).toBe(true);
+    // An identifier repeated back is not an explanation.
+    expect(entry.does.toLowerCase()).not.toContain(name);
+  });
+
+  it("says plainly that a forbidden operation is refused, wherever it is shown", () => {
+    for (const o of catalogue().filter((x) => x.risk === "forbidden")) {
+      expect(o.does.toLowerCase()).toContain("refused");
+    }
+  });
+});
+
+/**
+ * A POLICY THAT ARRIVES FROM A FORM.
+ *
+ * `decide()` refuses a forbidden operation whatever the policy says, so none of this is what keeps
+ * Warden safe. It is what keeps the SCREEN honest: a stored policy claiming to grant `delete_data`
+ * would be rendered as granted, and somebody would reasonably believe they had granted it. The
+ * editor must not be able to write a permission the engine will never honour.
+ */
+describe("a policy arriving from outside", () => {
+  const forbidden = OPERATION_NAMES.filter((n) => riskOf(n) === "forbidden");
+
+  it("cannot grant a forbidden operation, however it is submitted", () => {
+    const attempt = { ...DEFAULT_POLICY, may: [...DEFAULT_POLICY.may, ...forbidden], never: [] };
+    const saved = sanitisePolicy(attempt);
+    for (const op of forbidden) {
+      expect(saved.may, op).not.toContain(op);
+      expect(saved.ask, op).not.toContain(op);
+      expect(saved.never, op).toContain(op);
+      // and the engine agrees, which is the claim the screen is now making
+      expect(decide(op, saved, { actionsTaken: 0, minutesSinceLastAction: null }).verdict).toBe("refuse");
+    }
+  });
+
+  it("pins the forbidden four into never even when never was submitted empty", () => {
+    expect(sanitisePolicy({ ...OBSERVE_ONLY, never: [] }).never).toEqual(expect.arrayContaining(forbidden));
+  });
+
+  it("drops operations the catalogue has never heard of rather than storing a fiction", () => {
+    const saved = sanitisePolicy({ ...DEFAULT_POLICY, may: [...DEFAULT_POLICY.may, "sudo_rm_rf", "curl"] });
+    expect(saved.may).not.toContain("sudo_rm_rf");
+    expect(saved.may).not.toContain("curl");
+    expect(saved.may).toContain("pm2_restart");
+  });
+
+  it("puts an operation in exactly one list, so the editor cannot show two answers at once", () => {
+    const saved = sanitisePolicy({ ...DEFAULT_POLICY, may: ["pm2_restart"], ask: ["pm2_restart"], never: ["pm2_restart"] });
+    const appearances = [saved.may, saved.ask, saved.never].filter((xs) => xs.includes("pm2_restart"));
+    expect(appearances).toHaveLength(1);
+    // never beats ask beats may — the same precedence decide() applies
+    expect(saved.never).toContain("pm2_restart");
+  });
+
+  it("falls back to watching only when handed something that is not a policy", () => {
+    for (const junk of [null, "", 42, { may: "everything" }, { maxActionsPerIncident: -5 }]) {
+      expect(posture(sanitisePolicy(junk))).toBe("observe");
+    }
+  });
+
+  it("keeps a legitimate policy intact", () => {
+    expect(sanitisePolicy(ASK_BEFORE_ACTING)).toEqual(ASK_BEFORE_ACTING);
+    expect(sanitisePolicy(DEFAULT_POLICY)).toEqual(DEFAULT_POLICY);
   });
 });

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Nav } from "@/components/nav";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import "../styles/tokens.css";
@@ -28,7 +29,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${mono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Nav />
+        {children}
+      </body>
     </html>
   );
 }

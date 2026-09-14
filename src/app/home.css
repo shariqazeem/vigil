@@ -103,3 +103,21 @@
   .sv-probe-d { display: none; }
   .hm-stats { gap: var(--s-5); }
 }
+
+/* ── added when the console became the product rather than a view of it ── */
+
+.hm-do { display: flex; align-items: flex-start; gap: var(--s-4); flex-wrap: wrap; margin-top: var(--s-6); }
+
+.hm-h2 {
+  margin: 0 0 var(--s-1);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  display: flex; align-items: baseline; gap: var(--s-3); flex-wrap: wrap;
+}
+.hm-h2-n { font-family: var(--font-mono); font-size: var(--fs-micro); letter-spacing: var(--tracking-micro); text-transform: uppercase; color: var(--ink-ghost); font-weight: 400; }
+
+.hm-start { margin-top: var(--s-7); padding: var(--s-6); }
+.hm-start-h { margin: 0 0 var(--s-3); font-size: var(--fs-h3); letter-spacing: var(--tracking-h3); font-weight: 600; }
+.hm-start-p { margin: 0 0 var(--s-4); color: var(--ink-muted); max-width: 62ch; }
+.sv-none { color: var(--ink-ghost); font-size: var(--fs-small); }
