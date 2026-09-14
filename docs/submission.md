@@ -176,6 +176,27 @@ now cleared on a new attempt and kept on a resume — the distinction is the who
 start a process that was simply stopped. What actually answers that question is Warden's own reading
 history for the failing check, which is now handed to the investigator explicitly.
 
+**The halt fired for the first time in production, and could not be answered.** A restart fell
+inside the cooldown, the policy returned `ask`, the run stopped holding the question — all correct.
+Answering it threw `Agent is in an interrupted state`. The Strands interrupt id was held in an
+in-memory map keyed by incident, and the id is generated inside the tool call that halts, in
+whatever process is running then: the cron sweep, which prints the question and exits. The answer
+arrives minutes later in the web app, a different process with an empty map, so the code fell back
+to resuming with a prompt — which the SDK rightly refuses. Every test passed, because every test
+halted and resumed inside one process, which is the one arrangement production never has. The
+session on disk had the answer the whole time: `initialize()` replays it and the restored agent
+knows which interrupt it is holding. If you build human-in-the-loop on Strands, assume from the
+first line that the process raising an interrupt is not the process that answers it.
+
+**Opening the console opened a door I had already closed once.** A service with no ssh key runs its
+operations locally, and `repo` is chosen by whoever registers the service — so a stranger could
+register `{repo: "/home/ubuntu/warden", process: "warden"}` and point `read_file` at Warden's own
+checkout, where the `.env` is. The path containment in `operations.ts` is no defence, because the
+containment is relative to a repo the attacker named. It was a real hole on my own instance for
+about an hour and I verified it there before fixing it. The general shape is worth more than the
+specific bug: every boundary in a system was drawn against an assumption about who is on the other
+side of it, and none of them re-derive themselves when you let a new kind of person in.
+
 **macOS unix sockets are capped near 104 bytes.** ssh connection multiplexing died with
 `unix_listener: path too long` on every single call, because the default `ControlPath` combines the
 per-user TMPDIR with ssh's `%C` hash. A deliberately short path fixed it, and an investigation that
@@ -224,6 +245,8 @@ first-class outcome. An operator that escalates well at 3am has done a night's w
   been the thing that fixed a real outage.
 - More probe kinds — a queue depth, a certificate expiry, a disk threshold — since every one of them
   is also a verification step, which is where they pay for themselves.
+- Something better than a signed cookie for identity. It is enough to keep one visitor's services
+  out of another's hands and it is not an account: clear the cookie and they are unreachable.
 - A second host, so the ssh path is tested somewhere other than the machine that also runs Warden.
 
 ## Built with
