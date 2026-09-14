@@ -104,23 +104,40 @@ agent continues the thought it was having rather than being told about a decisio
 ago:
 
 ```ts
-  const interruptId = ctx.asked.find((a) => a.decisionId === decisionId)?.interruptId;
-  try {
-    result = interruptId
-      ? await agent.invoke([new InterruptResponseContent({ interruptId, response: answer })], state)
-      : await agent.invoke(
-          `The owner answered "${answer}"${note ? ` (${note})` : ""} to: ${decision.question}. ` +
-            (answer === "approve" ? "Carry out exactly what you proposed, then stop." : "Do not do it. Call give_up and say what a human needs to do instead."),
-          state,
-        );
-  } catch (e) {
+  // The session on disk is the reliable source. The process that RAISED the interrupt has usually
+  // exited by the time anybody answers, so its memory is the least reliable and is consulted last.
+  await agent.initialize().catch(() => {});
+  const interruptId = interruptToAnswer({
+    onDecision: decision.interruptId,
+    restoredFromSession: agent._interruptState?.getUnansweredInterrupt?.()?.id,
+    inMemory: ctx.asked.find((a) => a.decisionId === decisionId)?.interruptId,
+  });
+  result = interruptId
+    ? await agent.invoke([new InterruptResponseContent({ interruptId, response: answer })], state)
+    : await agent.invoke(`The owner answered "${answer}" to: ${decision.question}. …`, state);
 ```
 
-The fallback branch exists because an interrupt id can be lost — a redeploy, a cleared session — and
-an operator that cannot be answered because of bookkeeping is worse than one that re-reads the
-question. `SessionManager` with `LocalFileStorage` is what usually makes the first branch possible:
-the remedy agent's conversation is written to disk on every message, so a halted run outlives the
-process it started in.
+That ordering is the part I got wrong first, and it cost a production incident, so it is worth being
+blunt about. My first version read the interrupt id **only** from an in-memory map keyed by
+incident. It passed every test. It failed the first time it ran for real, with
+`Agent is in an interrupted state`.
+
+The reason is structural rather than careless. The interrupt id is generated inside the tool call
+that halts, in whatever process is running then — for Warden that is the cron sweep, which prints
+the question and exits. The answer arrives minutes or hours later in the web app, a different
+process with an empty map. So the code took the fallback branch and tried to resume an interrupted
+agent with a prompt, which the SDK rightly refuses. Every test passed because every test halted and
+resumed inside one process, which is the one arrangement that never occurs in production.
+
+`SessionManager` with `LocalFileStorage` had the answer the whole time: the remedy agent's state is
+written to disk on every message, `initialize()` replays it, and the restored agent knows which
+interrupt it is still holding. The fallback branch still exists — an operator that cannot be
+answered because of bookkeeping is worse than one that re-reads the question — but it is now the
+last resort rather than the common path.
+
+**If you build human-in-the-loop on Strands, assume from the first line that the process which
+raises an interrupt is not the process that answers it.** Persist the id, or ask the restored agent
+for it. Do not keep it in a `Map`.
 
 ## Hooks as the rules the model cannot argue with
 
@@ -236,4 +253,4 @@ system prompt, it meant I had not yet written the hook.
 ---
 
 *Warden: https://github.com/shariqazeem/warden (MIT). The suite that proves the boundaries —
-228 tests, offline, no model, nothing spawned — is `npx vitest run`.*
+258 tests, offline, no model, nothing spawned — is `npx vitest run`.*

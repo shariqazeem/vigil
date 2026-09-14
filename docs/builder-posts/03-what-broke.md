@@ -1,4 +1,4 @@
-# Agents for Humans: six bugs between a working demo and a working operator
+# Agents for Humans: eight bugs between a working demo and a working operator
 
 Warden is an agent that operates running software — it investigates a failing check, fixes what a
 per-service policy allows, and proves the fix by re-running the check. Built on the Strands Agents
@@ -164,6 +164,116 @@ Two lists that must agree, in different files, with nothing between them to noti
 agreeing, is the most common defect shape I hit in this codebase. The fix is always the same: one
 test that reads both.
 
+## 7. The halt that could not be answered
+
+This is the one I would most want another agent builder to read, because it is invisible until the
+feature is genuinely used and it was invisible to a test suite that covered the feature.
+
+Warden's central claim is that when the policy says `ask`, the run **stops** — a real Strands
+interrupt, raised from inside a tool, held until a person answers, resumable hours later from a
+different process. That is what makes it an operator rather than an automation: the pause is not a
+poll, it is the agent suspended mid-thought with its state on disk.
+
+It fired on the live fleet for the first time last week. A restart fell inside the service's
+cooldown, the policy returned `ask`, the tool raised the interrupt, the run stopped, the question
+appeared on the board. Everything about the halt worked.
+
+Answering it did not:
+
+```
+Could not pick the run back up: Agent is in an interrupted state.
+Resume by invoking with interruptResponse content blocks.
+```
+
+The resume path looked like this:
+
+```ts
+const interruptId = ctx.asked.find((a) => a.decisionId === decisionId)?.interruptId;
+result = interruptId
+  ? await agent.invoke([new InterruptResponseContent({ interruptId, response: answer })], state)
+  : await agent.invoke(`The owner answered "${answer}" …`, state);
+```
+
+`ctx` is an in-memory context, keyed by incident. The id of the interrupt is generated inside the
+tool call that halts — **in whatever process was running at the time**. For Warden that is almost
+always the sweep's: a cron process that opens the incident, hands it to the agent, gets interrupted,
+prints the question and exits. Minutes later somebody answers in the web app, which is a different
+process, with an empty `ctx`. So `interruptId` was `undefined`, the code took the fallback branch,
+and the SDK correctly refused: the session on disk *is* interrupted, and you do not resume an
+interrupted agent with a prompt.
+
+Every test passed, because every test halted and resumed inside one process — which is the one case
+that never happens in production.
+
+The fix is three lines and the interesting part is where the answer already was:
+
+```ts
+await agent.initialize().catch(() => {});
+const interruptId = interruptToAnswer({
+  onDecision: decision.interruptId,
+  restoredFromSession: agent._interruptState?.getUnansweredInterrupt?.()?.id,
+  inMemory: ctx.asked.find((a) => a.decisionId === decisionId)?.interruptId,
+});
+```
+
+`initialize()` replays the session, and the restored agent knows perfectly well which interrupt it
+is still holding. The precedence is deliberate and it is the lesson: **the session on disk is the
+most reliable source and the in-memory note is the least.** A decision row written by an older build
+comes second; the process's own memory comes last, because it only survives in the case that hardly
+ever occurs.
+
+The same run, answered again: the act ran in 318ms, the probe came back `200 in 310ms`, and an
+incident that had been open seventeen minutes closed.
+
+If you are building human-in-the-loop with Strands, assume from the first line that the process
+which raises an interrupt will not be the process that answers it. Persist the interrupt id, or ask
+the restored agent for it. Do not keep it in a `Map`.
+
+## 8. Opening the console opened a door I had not looked at
+
+The last one is not an agent bug. It is what happens when you change who can reach your code and
+forget to re-ask a question you had already answered.
+
+Warden's operations run in one of two places: locally, or over ssh on a machine named by the
+service. Registering a service used to mean editing a script on the box, so "may this person point
+Warden at a path of their choosing" never came up — they had a shell there already. The containment
+that does exist is relative:
+
+```ts
+function insideRepo(repo: string, path: string): string { /* throws if path escapes */ }
+```
+
+Then I made the console the product. Anyone can now register a service from a browser, and the form
+takes a checkout path and a process name. A service with no ssh key runs its operations locally. So:
+
+```json
+{ "name": "innocent", "url": "https://example.com/",
+  "repo": "/home/ubuntu/warden", "process": "warden" }
+```
+
+That registration points `read_file` at Warden's own checkout — where the `.env` with the model key
+lives — and `pm2_restart` at Warden itself. `insideRepo` does not help at all: the containment is
+relative to a repo the attacker named. I verified it against my own production instance before
+fixing it, which I recommend, because reading the code convinces you much less than watching it work.
+
+The fix is a rule rather than a patch. A registration that arrives over the network does not get the
+machine Warden runs on unless the operator has said so:
+
+```
+WARDEN_ALLOW_LOCAL_SERVICES=1
+```
+
+Without it, a service with no machine to reach is an http watch and nothing else — said plainly to
+the person registering it, with the reason, rather than quietly downgraded. The same rule guards the
+edit route, because editing is another way to arrive at the same place. The CLI is untouched, and
+that is the whole distinction: whoever runs it already has a shell on the box.
+
+The general shape, which I think is worth more than the specific hole: **every boundary in your
+system was drawn against an assumption about who is on the other side of it.** When you let a new
+kind of person in — a browser instead of a terminal — none of those assumptions re-derive
+themselves. Go and find the ones that were load-bearing. Mine was "the person choosing the path
+already has a shell here", and it had been true for six days.
+
 ## And one that was not a bug in my code
 
 ssh connection multiplexing died on every call with:
@@ -185,9 +295,9 @@ Eleven characters plus the hash. That is all it needed.
 
 ## What the bugs have in common
 
-Four of the six are memory bugs: a strategy remembered by the wrong owner, a signature remembered
+Five of the eight are memory bugs: a strategy remembered by the wrong owner, a signature remembered
 across a hook re-entry, a session remembered across a restart, a field name remembered in one file
-and not the other. Agents make this worse than ordinary software does, because so much of their
+and not the other, and an interrupt id remembered by a process that had exited. Agents make this worse than ordinary software does, because so much of their
 state is deliberately persistent — that is the point of a session — and because when a remembered
 thing goes wrong, the system does not crash. It explains itself, fluently, and the explanation is
 wrong.
@@ -198,9 +308,16 @@ neither asks the agent what it remembers. When bug 4 had the remedy agent confid
 own old surrender, the thing that made it recoverable was that the incident's actual history was in
 a table, not in the conversation.
 
-The whole suite is 228 tests across 11 files, about a second, fully offline — no network, no
-model, no process spawned. Bugs 5 and 6 came out of writing it. That is a good rate of return for a
-morning.
+The last two do not fit that pattern and are the ones I would keep if I could only keep two. Bug 7
+was invisible to a complete test suite because every test exercised the feature in the one process
+arrangement that never occurs in production. Bug 8 was invisible because the boundary that would
+have caught it was drawn against an assumption — "whoever chooses this path already has a shell
+here" — that stopped being true the moment a browser could reach the same code, and assumptions do
+not re-derive themselves when you move them.
+
+The whole suite is 258 tests across 16 files, about a second, fully offline — no network, no model,
+no process spawned. Bugs 5 and 6 came out of writing it, and four of the tests exist only because
+bug 8 did. That is a good rate of return for a morning.
 
 ---
 

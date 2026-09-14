@@ -126,6 +126,53 @@ stopped, and said so. It acted on the part it could establish, and something oth
 decided whether that was enough. An agent allowed to be uncertain out loud, inside a boundary that
 does not depend on its certainty, is a different kind of thing from an agent that has to sound sure.
 
+## Writing a policy is the product, so it is a screen and not a file
+
+For most of the build, everything real about Warden lived behind a terminal. Registering a service
+meant editing a script on the server; writing a policy meant editing a TypeScript literal. The web
+app was a window onto what the agent had done.
+
+That was the wrong shape, and the reason is not convenience. The policy is the thing a person is
+being asked to take responsibility for. If writing it requires a shell, ssh access and a redeploy,
+then in practice one person writes it once and nobody ever looks at it again — which is exactly how
+a permission that made sense in March quietly authorises something in September.
+
+So the policy is now a screen. All sixteen operations, each with a sentence saying what granting it
+actually *means* — you cannot meaningfully agree to `redeploy_previous` if nothing on the page tells
+you it checks out the previous commit and restarts. Three answers per line. The four operations that
+are refused by name are shown **locked** rather than hidden, because "you cannot turn this on" is
+information and an absence is not. Nothing applies until you press save: an agent's permissions
+should not change because a finger slipped on a toggle.
+
+Two consequences I did not anticipate but would now design for deliberately.
+
+The first is that writing the sentences changed the catalogue. Explaining `redeploy_previous` in one
+honest line — *checks out the previous commit and restarts; this changes which code is running* —
+makes it obvious it belongs in a different risk class from restarting a process, which had been a
+judgement call in a config file nobody read.
+
+The second is that opening the console changed the threat model completely, and I missed part of it
+for an hour. A service with no ssh key runs its operations locally, and the checkout path is chosen
+by whoever registers the service — so a stranger could point the agent's `read_file` at the machine
+Warden itself runs on. The containment that existed was relative to a repo the attacker named. Every
+boundary in a system was drawn against an assumption about who is on the other side of it, and none
+of those assumptions re-derive themselves when you let a new kind of person in.
+
+## It has to be able to reach you
+
+The sentence I had been writing since the first commit was "it wakes you only when the decision is
+genuinely yours". For most of that time it described a screen: the run halted, a card appeared, and
+it sat there until somebody happened to look at it.
+
+An operator that cannot reach you has not woken you. An address is now a URL Warden POSTs to — a
+Slack or Discord incoming webhook is exactly that, and so is anything you wrote yourself, so no
+credential is stored and nothing has to be approved by anybody.
+
+Two rules about it matter more than the feature. Delivery never fails a run: a dead webhook must not
+turn a fixed incident into an error. And every attempt is written down, success or not, because a
+hook that silently stopped working looks exactly like a quiet night — which is the failure mode that
+would make the whole product a lie.
+
 ## What it is for
 
 Small teams cannot afford someone awake at 3am. They can afford something that does the mechanical
