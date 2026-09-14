@@ -92,13 +92,13 @@ describe("what a probe may be pointed at", () => {
     const res = await addProbeRoute(post("http://x", { kind: "http", label: "keys", url: "http://169.254.169.254/latest/meta-data/" }), params(mine));
     expect(res.status).toBe(400);
     expect(((await res.json()) as { error: string }).error).toContain("metadata");
-    expect(listProbes(mine)).toHaveLength(1);
+    expect(listProbes(mine).map((p) => p.kind).sort()).toEqual(["http", "tls"]);
   });
 
   it("refuses an address inside the network on an instance strangers can reach", async () => {
     const res = await addProbeRoute(post("http://x", { kind: "http", label: "internal", url: "http://10.0.0.5/admin" }), params(mine));
     expect(res.status).toBe(400);
-    expect(listProbes(mine)).toHaveLength(1);
+    expect(listProbes(mine)).toHaveLength(2);
   });
 
   it("refuses registering a service at one in the first place", async () => {
@@ -109,7 +109,43 @@ describe("what a probe may be pointed at", () => {
   it("accepts an ordinary public URL", async () => {
     const res = await addProbeRoute(post("http://x", { kind: "http", label: "another page", url: "https://example.com/about" }), params(mine));
     expect(res.status).toBe(200);
-    expect(listProbes(mine)).toHaveLength(2);
+    expect(listProbes(mine)).toHaveLength(3);
+  });
+});
+
+describe("a certificate check nobody asked for", () => {
+  /**
+   * It comes free with an https URL and it is the only check here that fails BEFORE anything is
+   * broken — days before, while there is still time to renew. Nobody thinks to ask for it and
+   * everybody wants it at 3am, which is the argument for it being a default rather than an option.
+   */
+  it("is added alongside the http check when the URL is https", async () => {
+    asAnon("anon:cert-1");
+    const made = await registerService(post("http://x/api/services", { name: "Secure", url: "https://example.com/", posture: "observe" }));
+    const id = ((await made.json()) as { id: string }).id;
+
+    const tls = listProbes(id).find((p) => p.kind === "tls")!;
+    expect(tls, "an https registration should watch its own certificate").toBeTruthy();
+    expect(JSON.parse(tls.spec)).toMatchObject({ url: "https://example.com/", warnDays: 14 });
+    // Once a day is plenty for something measured in days, and it does not flap.
+    expect(tls.everySeconds).toBeGreaterThanOrEqual(21_600);
+    expect(tls.failuresToOpen).toBe(1);
+  });
+
+  it("is not added for an http URL, which has no certificate", async () => {
+    asAnon("anon:cert-2");
+    const made = await registerService(post("http://x/api/services", { name: "Plain", url: "http://example.com/", posture: "observe" }));
+    const id = ((await made.json()) as { id: string }).id;
+    expect(listProbes(id).map((p) => p.kind)).toEqual(["http"]);
+  });
+
+  it("refuses to watch a certificate on a URL that has none", async () => {
+    asAnon("anon:cert-3");
+    const made = await registerService(post("http://x/api/services", { name: "Plain 2", url: "http://example.com/", posture: "observe" }));
+    const id = ((await made.json()) as { id: string }).id;
+    const res = await addProbeRoute(post("http://x", { kind: "tls", label: "cert", url: "http://example.com/" }), params(id));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain("no certificate");
   });
 });
 

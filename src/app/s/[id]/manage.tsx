@@ -168,7 +168,7 @@ const clamp = (v: string, lo: number, hi: number) => Math.max(lo, Math.min(hi, N
 
 export function ProbeAdder({ serviceId, hasProcess }: { serviceId: string; hasProcess: boolean }) {
   const [open, setOpen] = useState(false);
-  const [kind, setKind] = useState<"http" | "process">("http");
+  const [kind, setKind] = useState<"http" | "tls" | "process">("http");
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [process, setProcess] = useState("");
@@ -183,7 +183,13 @@ export function ProbeAdder({ serviceId, hasProcess }: { serviceId: string; hasPr
     const res = await fetch(`/api/services/${serviceId}/probes`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ kind, label: label || (kind === "http" ? "the site answers" : "the process is up"), url, process, expectStatus }),
+      body: JSON.stringify({
+        kind,
+        label: label || (kind === "http" ? "the site answers" : kind === "tls" ? "the certificate is not about to expire" : "the process is up"),
+        url,
+        process,
+        expectStatus,
+      }),
     });
     const body = (await res.json()) as { error?: string };
     setBusy(false);
@@ -209,6 +215,9 @@ export function ProbeAdder({ serviceId, hasProcess }: { serviceId: string; hasPr
         <button type="button" className={`pe-seg-b ${kind === "http" ? "is-on is-may" : ""}`} onClick={() => setKind("http")}>
           A URL answers
         </button>
+        <button type="button" className={`pe-seg-b ${kind === "tls" ? "is-on is-may" : ""}`} onClick={() => setKind("tls")}>
+          Its certificate is not about to expire
+        </button>
         <button type="button" className={`pe-seg-b ${kind === "process" ? "is-on is-may" : ""}`} onClick={() => setKind("process")} disabled={!hasProcess}>
           A process is up
         </button>
@@ -219,6 +228,15 @@ export function ProbeAdder({ serviceId, hasProcess }: { serviceId: string; hasPr
           <input className="nw-in mono" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/health" maxLength={400} />
           <input className="nw-in mono nw-narrow" value={expectStatus} onChange={(e) => setExpectStatus(e.target.value)} placeholder="200" maxLength={3} />
         </div>
+      ) : kind === "tls" ? (
+        <>
+          <input className="nw-in mono" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/" maxLength={400} />
+          <span className="nw-hint">
+            Asked every six hours, and it fails while there are still fourteen days left — which is the point. Warden cannot renew
+            a certificate and nothing in its catalogue pretends it can; it tells you the date and the issuer, in time to do
+            something about it.
+          </span>
+        </>
       ) : (
         <input className="nw-in mono" value={process} onChange={(e) => setProcess(e.target.value)} placeholder="the pm2 process name" maxLength={80} />
       )}

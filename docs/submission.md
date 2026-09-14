@@ -63,7 +63,7 @@ a visitor registered — and stopping is still not one of Warden's own operation
 
 **And you can use it on your own things in under a minute.** Press *Watch something of yours*, give
 it a URL, and that is the sign-up: a signed cookie makes the service yours and the next sweep picks
-it up. Everything after that is in the console — the policy editor, where all sixteen operations sit
+it up. Everything after that is in the console — the policy editor, where all seventeen operations sit
 with a sentence each saying what granting it actually means, with the four forbidden ones shown
 locked rather than hidden; adding and retiring checks; *check it now*, which streams each probe as
 it answers; and the page where you say how Warden should reach you when it stops. There is a CLI and
@@ -141,14 +141,14 @@ the fan-out stays and a rate-limited gateway sees a bounded queue.
 The deployed instance is not on Bedrock — it runs MiniMax-M3 through an OpenAI-compatible endpoint —
 and the console prints which model actually ran each pass so the screen cannot claim otherwise.
 
-Underneath all of it: **Warden has no shell.** It invokes one of 16 named operations from a fixed
+Underneath all of it: **Warden has no shell.** It invokes one of 17 named operations from a fixed
 catalogue, arguments validated by zod, spawned with `execFile`. Four of them (`db_migrate`,
 `delete_data`, `rotate_secret`, `destroy_infra`) are declared *forbidden* rather than omitted, so the
 product can show you the line — and `decide()` refuses forbidden risk before it consults the policy
 at all, so no policy can grant them.
 
 The sweep is pm2 cron every ten minutes; the console is Next.js with the run streaming over SSE; the
-ledger is SQLite through drizzle. 287 tests across 18 files, about a second, fully offline.
+ledger is SQLite through drizzle. 291 tests across 18 files, about a second, fully offline.
 
 ## Challenges I ran into
 

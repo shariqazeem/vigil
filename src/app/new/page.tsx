@@ -20,7 +20,7 @@ export const metadata = {
  * Everything about this page is arranged around one claim: you can hand a running system to an
  * agent in under a minute and still know exactly what you have agreed to. So the form is short, the
  * only required field is how to tell whether the thing is alright, and the decision that actually
- * matters — what Warden may do when it is not — is three sentences, not sixteen switches.
+ * matters — what Warden may do when it is not — is three sentences, not seventeen switches.
  */
 export default async function NewServicePage() {
   const owner = await currentOwner();

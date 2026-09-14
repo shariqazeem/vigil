@@ -35,7 +35,7 @@ export type Policy = z.infer<typeof PolicySchema>;
 
 /** What a new service gets: look at everything, restart itself, ask before anything that sticks. */
 export const DEFAULT_POLICY: Policy = {
-  may: ["http_probe", "pm2_list", "pm2_logs", "git_log", "git_show", "read_file", "grep_repo", "disk_free", "pm2_restart", "pm2_start", "run_tests"],
+  may: ["http_probe", "tls_expiry", "pm2_list", "pm2_logs", "git_log", "git_show", "read_file", "grep_repo", "disk_free", "pm2_restart", "pm2_start", "run_tests"],
   ask: ["redeploy_previous"],
   never: ["db_migrate", "delete_data", "rotate_secret", "destroy_infra"],
   maxActionsPerIncident: 3,
@@ -50,7 +50,7 @@ export const DEFAULT_POLICY: Policy = {
  * that restarts itself in the middle of an incident loses the run it was in the middle of.
  */
 export const ASK_BEFORE_ACTING: Policy = {
-  may: ["http_probe", "pm2_list", "pm2_logs", "git_log", "git_show", "read_file", "grep_repo", "disk_free"],
+  may: ["http_probe", "tls_expiry", "pm2_list", "pm2_logs", "git_log", "git_show", "read_file", "grep_repo", "disk_free"],
   ask: ["pm2_restart", "pm2_start", "run_tests", "redeploy_previous"],
   never: ["db_migrate", "delete_data", "rotate_secret", "destroy_infra"],
   maxActionsPerIncident: 2,
@@ -117,7 +117,7 @@ export const POSTURE_WORDS: Record<Posture, { label: string; tone: "unknown" | "
 
 /** A service Warden may only read. Used for anything it does not own — someone else's production. */
 export const OBSERVE_ONLY: Policy = {
-  may: ["http_probe", "pm2_list", "pm2_logs", "git_log", "git_show", "read_file", "grep_repo", "disk_free"],
+  may: ["http_probe", "tls_expiry", "pm2_list", "pm2_logs", "git_log", "git_show", "read_file", "grep_repo", "disk_free"],
   ask: [],
   never: ["pm2_restart", "pm2_start", "run_tests", "redeploy_previous", "db_migrate", "delete_data", "rotate_secret", "destroy_infra"],
   maxActionsPerIncident: 0,

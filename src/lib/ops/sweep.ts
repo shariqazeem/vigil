@@ -39,6 +39,7 @@ const noop = () => {};
 function operationFor(probe: Probe, service: Service): { op: OperationName; input: Record<string, unknown> } {
   const spec = parseSpec(probe);
   if (probe.kind === "http") return { op: "http_probe", input: spec };
+  if (probe.kind === "tls") return { op: "tls_expiry", input: spec };
   if (probe.kind === "process") return { op: "pm2_list", input: {} };
   throw new Error(`unknown probe kind "${probe.kind}" on ${service.name}`);
 }
@@ -61,7 +62,13 @@ export async function runProbe(service: Service, probe: Probe, opts: { incidentI
   const { op, input } = operationFor(probe, service);
   const target = targetOf(service);
 
-  emit({ kind: "probe.start", serviceId: service.id, probeId: probe.id, label: probe.label, command: probe.kind === "http" ? String(input.url ?? "") : `pm2 · ${service.process ?? ""}` });
+  emit({
+    kind: "probe.start",
+    serviceId: service.id,
+    probeId: probe.id,
+    label: probe.label,
+    command: probe.kind === "process" ? `pm2 · ${service.process ?? ""}` : String(input.url ?? ""),
+  });
 
   const res = await execute(op, input, target);
   const verdict =
@@ -137,9 +144,11 @@ export async function sweepService(service: Service, emit: (e: SweepEmit) => voi
     const incident = openIncident({
       serviceId: service.id,
       probeId: probe.id,
-      title: `${service.name}: ${probe.label} is failing`,
+      title: probe.kind === "tls" ? `${service.name}: ${probe.label}` : `${service.name}: ${probe.label} is failing`,
       symptom: reading.detail,
-      severity: probe.kind === "http" ? "down" : "down",
+      // A certificate check fails while the service is still perfectly healthy — days before it
+      // would stop working. Calling that "down" would be a lie on the board and in the notification.
+      severity: probe.kind === "tls" ? "warning" : "down",
     });
     logEvent(service.id, "sweep", "incident.open", `${probe.label}: ${reading.detail}`, incident.id);
     emit({ kind: "incident.open", incidentId: incident.id, serviceId: service.id, title: incident.title, symptom: reading.detail });

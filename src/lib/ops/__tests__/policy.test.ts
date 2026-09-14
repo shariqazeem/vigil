@@ -195,6 +195,7 @@ describe("decide — every operation under the two shipped policies", () => {
   it("DEFAULT_POLICY: read and restart alone, ask before what does not undo itself, never the forbidden four", () => {
     const expected: Record<OperationName, string> = {
       http_probe: "allow",
+      tls_expiry: "allow",
       pm2_list: "allow",
       pm2_logs: "allow",
       git_log: "allow",

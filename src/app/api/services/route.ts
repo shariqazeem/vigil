@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * the machine, the checkout, the process name — only widens what Warden can find out once it is
  * not. So a URL alone is a complete registration, and the form says so.
  *
- * The posture is chosen here rather than assembled from sixteen toggles, because the first decision
+ * The posture is chosen here rather than assembled from seventeen toggles, because the first decision
  * a person makes about an agent touching their production should be a sentence they can hold in
  * their head. The full policy is on the service page afterwards, where they can see what each one
  * actually permits before they widen it.
@@ -128,6 +128,19 @@ export async function POST(req: Request) {
       failuresToOpen: 2,
     });
   }
+  // A certificate check comes free with an https URL, and it is the only check here that fails
+  // before anything is broken. Nobody thinks to ask for it; everybody wants it at 3am.
+  if (b.url?.startsWith("https:")) {
+    addProbe({
+      serviceId: service.id,
+      kind: "tls",
+      label: "the certificate is not about to expire",
+      spec: { url: b.url, warnDays: 14 },
+      everySeconds: 21_600,
+      failuresToOpen: 1,
+    });
+  }
+
   if (process_) {
     addProbe({
       serviceId: service.id,

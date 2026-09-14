@@ -58,7 +58,7 @@ answer to it is a real outage rather than a video.
 
 **Then use it.** Press *Watch something of yours* and give it a URL. That is the whole sign-up: a
 signed cookie makes the service yours, and the next sweep picks it up. Everything after that is in
-the console — the policy editor (all sixteen operations, each with a sentence saying what granting
+the console — the policy editor (all seventeen operations, each with a sentence saying what granting
 it means), adding and retiring checks, *check it now* streaming each probe as it answers, and
 `/settings` for where Warden should reach you when it stops to ask. Nothing about running Warden
 requires a terminal; the CLI still exists and does the same things, because the same functions are
@@ -69,7 +69,7 @@ behind both.
 ```bash
 npm install --legacy-peer-deps
 npx vitest run
-# 17 files, 287 tests, ~1s
+# 17 files, 291 tests, ~1s
 
 npx vitest run src/agent/__tests__/gates.test.ts
 # the red team: a jailbroken sequence pushed through the real hooks and the real tools
@@ -93,8 +93,8 @@ The web app is the product, not a view of it. Every page calls the same function
 | | |
 | --- | --- |
 | `/` | Your fleet and the public one, kept apart. Live probe history per check, the postures, and *check everything now* — the same sweep the cron runs, streamed as each probe answers. A halted run is the one thing this page is ever loud about. |
-| `/new` | Register something. A URL is a complete registration; a machine, a checkout and a pm2 process are what turn a watch into an operator. The posture is three sentences rather than sixteen switches, because nobody choosing this for the first time can judge whether `redeploy_previous` belongs in `ask`. |
-| `/s/[id]` | **The policy editor.** All sixteen operations, each with a sentence saying what granting it *means*, the action cap, the cooldown and the note. The four forbidden operations are shown locked rather than hidden. Nothing is applied until you press save. Also: add and retire checks, check it now, pause, delete. |
+| `/new` | Register something. A URL is a complete registration; a machine, a checkout and a pm2 process are what turn a watch into an operator. The posture is three sentences rather than seventeen switches, because nobody choosing this for the first time can judge whether `redeploy_previous` belongs in `ask`. |
+| `/s/[id]` | **The policy editor.** All seventeen operations, each with a sentence saying what granting it *means*, the action cap, the cooldown and the note. The four forbidden operations are shown locked rather than hidden. Nothing is applied until you press save. Also: add and retire checks, check it now, pause, delete. |
 | `/i/[id]` | One incident, live over SSE. Hand it over, watch it work, answer it when it stops — and every command at the bottom with the rule that permitted it. |
 | `/activity` | Every operation across every service, newest first, refusals as prominent as acts. |
 | `/settings` | Where Warden should reach you. |
@@ -223,7 +223,7 @@ flowchart LR
   POLICY{{"<b>THE POLICY</b> — per service, written by a human<br/>may → do it · ask → stop and ask · never → refuse<br/><i>plus an action cap and a cooldown</i>"}}:::policy
   CONSOLE == "a human writes it, in the console" ==> POLICY
 
-  CAT[("<b>the catalogue</b> — 16 named operations<br/>zod-validated args, spawned with execFile<br/><i>there is no shell, and no way to compose one</i><br/>4 are forbidden to every policy")]:::src
+  CAT[("<b>the catalogue</b> — 17 named operations<br/>zod-validated args, spawned with execFile<br/><i>there is no shell, and no way to compose one</i><br/>4 are forbidden to every policy")]:::src
 
   INV --> GUARD
   REM --> GUARD
@@ -335,9 +335,9 @@ Four rules in `src/agent/guards.ts`, enforced in a `BeforeToolCallEvent` hook be
 4. **No acting past a refusal.** Once an operation has been refused on this incident, it cannot be
    re-attempted with different wording.
 
-**The catalogue** (`src/lib/ops/operations.ts`) is 16 named operations: 8 `read`
-(`http_probe`, `pm2_list`, `pm2_logs`, `git_log`, `git_show`, `read_file`, `grep_repo`,
-`disk_free`), 3 `reversible` (`pm2_restart`, `pm2_start`, `run_tests`), 1 `disruptive`
+**The catalogue** (`src/lib/ops/operations.ts`) is 17 named operations: 9 `read`
+(`http_probe`, `tls_expiry`, `pm2_list`, `pm2_logs`, `git_log`, `git_show`, `read_file`,
+`grep_repo`, `disk_free`), 3 `reversible` (`pm2_restart`, `pm2_start`, `run_tests`), 1 `disruptive`
 (`redeploy_previous`), and 4 `forbidden` — `db_migrate`, `delete_data`, `rotate_secret`,
 `destroy_infra`. The forbidden four are **declared rather than omitted**, so the product can show
 you the line. `decide()` refuses forbidden risk before it consults the policy at all, so no policy
@@ -363,8 +363,30 @@ throws, so after each attempt the test asserts *nothing was spawned*, *nothing l
 legitimate look, a diagnosis, an allowed restart — which does run and does write, because a
 red-team test that passes against a broken harness proves nothing.
 
-The whole suite is 287 tests across 18 files, about a second, fully offline: no network, no model,
+The whole suite is 291 tests across 18 files, about a second, fully offline: no network, no model,
 no process spawned.
+
+## The one check that fails before anything is broken
+
+Every other probe here reports something that has already happened. A certificate is different: it
+takes a service down completely, from perfectly healthy, at whatever hour it happens to expire, with
+no deploy and no crash to investigate — and the fix takes minutes if anybody knows in time.
+
+So `tls_expiry` fails while there are still days left. Every service registered with an https URL
+gets one, at fourteen days' notice, without being asked: nobody thinks of it and everybody wants it
+at 3am. It needs no machine, which makes it the one thing Warden can do properly for a service that
+is only a URL, and its incident is a `warning` rather than `down`, because saying "down" about a
+service that is serving perfectly would be a lie on the board and in the notification.
+
+Warden cannot renew a certificate, and nothing in the catalogue pretends it can. It hands you the
+date and the issuer, which is the useful thing to be given at that point.
+
+```bash
+npm run test:online   # the certificate checks, against hosts that exist to be tested against
+```
+
+Those are the only tests here that touch the network, and they are in a separate config for exactly
+that reason — everything claimed about the main suite below stays true.
 
 ## How it knows it worked
 

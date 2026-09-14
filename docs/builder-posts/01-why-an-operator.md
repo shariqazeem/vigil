@@ -70,7 +70,7 @@ willing to let an agent restart the other two.
 ## There is no shell, and there is no way to compose one
 
 Under the policy sits the thing that makes the policy meaningful. Warden cannot run a command. It
-can invoke one of sixteen **named operations** from a fixed catalogue — `pm2_list`, `pm2_logs`,
+can invoke one of seventeen **named operations** from a fixed catalogue — `pm2_list`, `pm2_logs`,
 `git_log`, `git_show`, `read_file`, `grep_repo`, `disk_free`, `http_probe`, `pm2_restart`,
 `pm2_start`, `run_tests`, `redeploy_previous` — with arguments validated by a zod schema, spawned
 with `execFile`. No string is ever concatenated into a shell. A semicolon in an argument is a
@@ -139,7 +139,7 @@ being asked to take responsibility for. If writing it requires a shell, ssh acce
 then in practice one person writes it once and nobody ever looks at it again — which is exactly how
 a permission that made sense in March quietly authorises something in September.
 
-So the policy is now a screen. All sixteen operations, each with a sentence saying what granting it
+So the policy is now a screen. All seventeen operations, each with a sentence saying what granting it
 actually *means* — you cannot meaningfully agree to `redeploy_previous` if nothing on the page tells
 you it checks out the previous commit and restarts. Three answers per line. The four operations that
 are refused by name are shown **locked** rather than hidden, because "you cannot turn this on" is

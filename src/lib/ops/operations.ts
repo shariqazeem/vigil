@@ -94,7 +94,7 @@ export interface OperationDef<I extends z.ZodTypeAny> {
   describe: (input: z.infer<I>, t: Target) => string;
   /**
    * What granting this actually means, for the person writing the policy. A policy editor that
-   * lists sixteen identifiers is one nobody can use honestly: you cannot agree to
+   * lists seventeen identifiers is one nobody can use honestly: you cannot agree to
    * `redeploy_previous` if nothing on the screen says it checks out the previous commit and
    * restarts. One sentence, present tense, no jargon.
    */
@@ -145,6 +145,77 @@ export const OPERATIONS = {
       } catch (e) {
         return { ok: false, data: { ms: Date.now() - t0 }, detail: e instanceof Error ? e.message : String(e) };
       }
+    },
+  }),
+
+  tls_expiry: def({
+    name: "tls_expiry",
+    does: "Reads the TLS certificate a URL is served with and reports how many days are left on it.",
+    risk: "read",
+    input: z.object({
+      url: z.string().url(),
+      /** below this, the check fails — while there is still time to do something about it */
+      warnDays: z.coerce.number().int().min(1).max(365).default(14),
+      timeoutMs: z.coerce.number().int().min(500).max(30_000).default(10_000),
+    }),
+    describe: (i) => `TLS certificate for ${new URL(i.url).host}`,
+    spawn: null,
+    /*
+     * The only check here that fails BEFORE anything is broken.
+     *
+     * A certificate that expires at 3am takes a service down completely, from perfectly healthy, with
+     * no deploy and no crash to investigate — and the fix takes minutes if anyone knows in time. So
+     * this fails while there are still days left, which makes it the one probe whose incident is a
+     * warning rather than an outage. Warden cannot renew a certificate, and nothing in the catalogue
+     * pretends it can: it escalates with the date and the issuer, which is the useful thing to be
+     * handed at that point.
+     */
+    direct: async (i) => {
+      const url = new URL(i.url);
+      if (url.protocol !== "https:") {
+        return { ok: true, data: { skipped: true }, detail: `${url.host} is served over http, so there is no certificate to expire` };
+      }
+      const t0 = Date.now();
+      const { connect } = await import("node:tls");
+      return await new Promise((resolve) => {
+        const done = (r: { ok: boolean; data: unknown; detail: string }) => {
+          socket.destroy();
+          resolve(r);
+        };
+        const socket = connect(
+          {
+            host: url.hostname,
+            port: Number(url.port || 443),
+            // SNI is a name, and RFC 6066 forbids sending an address as one. Node warns and future
+            // versions will ignore it, so do not send it for a literal.
+            ...(/^[\d.]+$|:/.test(url.hostname) ? {} : { servername: url.hostname }),
+            timeout: i.timeoutMs,
+            // Read the certificate even when the chain does not verify — an expired certificate is
+            // exactly the case that fails verification, and it is the case this exists to report.
+            rejectUnauthorized: false,
+          },
+          () => {
+            const cert = socket.getPeerCertificate();
+            if (!cert?.valid_to) return done({ ok: false, data: null, detail: `${url.host} did not present a certificate` });
+            const expires = new Date(cert.valid_to);
+            const days = Math.floor((expires.getTime() - Date.now()) / 86_400_000);
+            const on = expires.toISOString().slice(0, 10);
+            const issuer = cert.issuer?.O ?? cert.issuer?.CN ?? "an unknown issuer";
+            done({
+              ok: days >= i.warnDays,
+              data: { days, expires: expires.toISOString(), issuer, ms: Date.now() - t0 },
+              detail:
+                days < 0
+                  ? `expired ${Math.abs(days)} days ago, on ${on}`
+                  : days < i.warnDays
+                    ? `expires in ${days} day${days === 1 ? "" : "s"}, on ${on} (${issuer})`
+                    : `${days} days left, until ${on} (${issuer})`,
+            });
+          },
+        );
+        socket.on("timeout", () => done({ ok: false, data: null, detail: `${url.host} did not answer within ${i.timeoutMs}ms` }));
+        socket.on("error", (e: Error) => done({ ok: false, data: null, detail: `could not read the certificate: ${e.message.slice(0, 120)}` }));
+      });
     },
   }),
 
@@ -404,7 +475,8 @@ export async function execute(name: OperationName, rawInput: unknown, target: Ta
    * This is not the policy speaking. The policy can grant `pm2_list` on such a service and the
    * grant will be honest about what it means: there is simply nothing here for it to be about.
    */
-  if (!target.process && !target.repo && (target.host === "local" || !target.host) && name !== "http_probe") {
+  const NETWORK_ONLY: OperationName[] = ["http_probe", "tls_expiry"];
+  if (!target.process && !target.repo && (target.host === "local" || !target.host) && !NETWORK_ONLY.includes(name)) {
     return fail(
       `${name} asks about a machine, and this service has none — it is watched over the network only. Give it a machine to reach, a checkout or a process name, and this becomes possible.`,
     );

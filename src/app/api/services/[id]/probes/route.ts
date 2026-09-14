@@ -17,13 +17,14 @@ export const dynamic = "force-dynamic";
 const MAX_PROBES = 12;
 
 const Body = z.object({
-  kind: z.enum(["http", "process"]),
+  kind: z.enum(["http", "tls", "process"]),
   label: z.string().trim().min(1).max(60),
   url: z.string().trim().max(400).optional().nullable(),
   expectStatus: z.coerce.number().int().min(100).max(599).default(200),
   expectContains: z.string().trim().max(200).optional().nullable(),
   process: z.string().trim().max(80).optional().nullable(),
   everySeconds: z.coerce.number().int().min(60).max(86_400).default(300),
+  warnDays: z.coerce.number().int().min(1).max(365).default(14),
 });
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -38,6 +39,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const b = parsed.data;
 
   if (listProbes(id).length >= MAX_PROBES) return no(`${MAX_PROBES} checks on one service is already more than anyone reads.`, 409);
+
+  if (b.kind === "tls") {
+    if (!b.url) return no("A certificate check needs the https URL it is served on.", 400, "url");
+    const verdict = checkProbeUrl(b.url);
+    if (!verdict.ok) return no(verdict.reason!, 400, "url");
+    if (!b.url.startsWith("https:")) return no("That URL is http, so there is no certificate to watch.", 400, "url");
+    const probe = addProbe({
+      serviceId: id,
+      kind: "tls",
+      label: b.label,
+      spec: { url: b.url, warnDays: b.warnDays },
+      // Once a day is plenty for something measured in days, and asking more often would be a
+      // handshake against somebody else's server every few minutes for no new information.
+      everySeconds: Math.max(b.everySeconds, 21_600),
+      // No threshold twice: a certificate does not flap.
+      failuresToOpen: 1,
+    });
+    logEvent(id, "human", "probe.added", `${b.label} — the certificate for ${new URL(b.url).host}, ${b.warnDays} days' notice`);
+    return ok({ id: probe.id });
+  }
 
   if (b.kind === "http") {
     if (!b.url) return no("A check over http needs a URL to ask.", 400, "url");
