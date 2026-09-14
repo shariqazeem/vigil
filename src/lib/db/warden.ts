@@ -284,6 +284,14 @@ export function answerDecision(did: string, answer: string, note?: string): Deci
 
 export const markResumed = (did: string): void => void db.update(decisions).set({ resumedAt: now() }).where(eq(decisions.id, did)).run();
 
+/**
+ * File the Strands interrupt this decision is holding, so the run can be picked up by a process
+ * that was not running when it stopped — which is the normal case, since the halt usually happens
+ * inside the sweep and the answer arrives hours later from the web app.
+ */
+export const rememberInterrupt = (did: string, interruptId: string): void =>
+  void db.update(decisions).set({ interruptId }).where(eq(decisions.id, did)).run();
+
 /** An open question about this exact operation on this incident — so it is never asked twice. */
 export function findDecisionFor(incidentId: string, op: string): Decision | null {
   return (

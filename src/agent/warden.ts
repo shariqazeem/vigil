@@ -19,6 +19,7 @@ import {
   policyOf,
   resolveIncident,
   updateIncident,
+  rememberInterrupt,
 } from "@/lib/db/warden";
 import { verifyIncident } from "@/lib/ops/sweep";
 import { makeModel, modelLabel, retryStrategy } from "./model";
@@ -355,6 +356,29 @@ async function settle(ctx: IncidentContext): Promise<Outcome> {
 
 const fmt = (s: number) => (s < 90 ? `${s}s` : `${Math.round(s / 60)}m`);
 
+/**
+ * Which interrupt this answer is for, from the three places the id can be.
+ *
+ * The order is the point. The id is generated inside the tool call that halted, in whatever process
+ * was running at the time — usually the sweep's, which exits minutes later. So the in-memory record
+ * is the least reliable source and is consulted last; it only survives when the answer arrives in
+ * the same process that asked, which is the rare case, not the normal one.
+ *
+ * The session on disk is what actually outlives the halt, so a freshly initialised agent that says
+ * it is still holding an interrupt is believed over a decision row that may have been written by an
+ * older build. Returning null means there is nothing to resume and the caller should start the
+ * agent with a prompt instead — resuming an interrupted agent with a prompt throws.
+ */
+export function interruptToAnswer(from: {
+  onDecision?: string | null;
+  restoredFromSession?: string | null;
+  inMemory?: string | null;
+}): string | null {
+  // `??` alone is not enough: a column that was set and then cleared reads back as "" from SQLite,
+  // and resuming with an empty id is not a resume — it is the throw, one step later.
+  return [from.restoredFromSession, from.onDecision, from.inMemory].find((v) => typeof v === "string" && v.length > 0) ?? null;
+}
+
 /* ── the other half of the halt ───────────────────────────────────── */
 
 /**
@@ -405,7 +429,23 @@ export async function resumeWithAnswer(decisionId: string, answer: string, note:
   const t0 = Date.now();
 
   let result: AgentResult;
-  const interruptId = ctx.asked.find((a) => a.decisionId === decisionId)?.interruptId;
+  /*
+   * Which interrupt is being answered.
+   *
+   * The id is generated inside the tool call that halted, in whichever process was running then —
+   * usually the sweep's, which has long since exited. So the in-memory record is the LEAST
+   * reliable source and is checked last. The session on disk is the real one: `initialize()`
+   * replays it, and the agent then knows which interrupt it is still holding. Resuming an
+   * interrupted agent with a plain prompt instead of an InterruptResponseContent throws
+   * "Agent is in an interrupted state", which is what a cross-process resume used to do every time.
+   */
+  await agent.initialize().catch(() => {});
+  const interruptId = interruptToAnswer({
+    onDecision: decision.interruptId,
+    restoredFromSession: agent._interruptState?.getUnansweredInterrupt?.()?.id,
+    inMemory: ctx.asked.find((a) => a.decisionId === decisionId)?.interruptId,
+  });
+  if (interruptId && interruptId !== decision.interruptId) rememberInterrupt(decisionId, interruptId);
   try {
     result = interruptId
       ? await agent.invoke([new InterruptResponseContent({ interruptId, response: answer })], state)
