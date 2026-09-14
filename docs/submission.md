@@ -53,16 +53,51 @@ Then the part that makes it a product instead of a demo: Warden re-runs *the exa
 failed*. A clean reading closes the incident and its id is stored as the proof. Anything else and
 the incident escalates, saying plainly that Warden acted but is not calling this fixed.
 
+**And you can use it on your own things in under a minute.** Press *Watch something of yours*, give
+it a URL, and that is the sign-up: a signed cookie makes the service yours and the next sweep picks
+it up. Everything after that is in the console — the policy editor, where all sixteen operations sit
+with a sentence each saying what granting it actually means, with the four forbidden ones shown
+locked rather than hidden; adding and retiring checks; *check it now*, which streams each probe as
+it answers; and the page where you say how Warden should reach you when it stops. There is a CLI and
+it does the same things, because the same functions are behind both, but nothing about running
+Warden requires a terminal.
+
 It is currently watching three real services on one VM — its own console, a public site called
 Vigil, and SAGE, which belongs to someone else and is registered `OBSERVE_ONLY`: every read allowed,
 every act refused by name, action cap zero. That last one is the product in one card. You can point
 an operator at something you are allowed to look at and not allowed to touch, and the policy is
-where you say so.
+where you say so. Those three are public to watch and writable by nobody — `canEdit` has no branch
+for them, which is the only reason it is safe to leave the fleet open.
+
+When it stops, it tells you. An address is a URL it POSTs to, so a Slack or Discord incoming webhook
+works with nothing to install, and so does anything you wrote yourself. It sends when it stopped to
+ask you, when it acted and the check still fails, and when it is handing the problem back — and only
+to addresses that asked for everything does it mention something it already fixed, because that is
+news, not an interruption.
 
 A real run, from the audit table on the live site: Vigil was stopped on purpose. Warden read the
 process table and the logs, diagnosed a stopped process at 55% confidence — naming a suspect commit
 while explicitly declining to blame it — the policy returned `allow` under rule `policy-may`, it ran
 `pm2 start vigil` in 712ms, re-ran the failing probe, got `200 in 1423ms`, and closed the incident.
+
+## What I had to get right before any of that could ship
+
+Letting a browser write to this changed the threat model completely. Until then, registering a
+service meant editing a file on the machine Warden runs on, so whoever did it already had a shell
+there. Three boundaries, with a test file that attacks each one:
+
+- **A probe is a server-side fetch on a timer**, which is the shape of every SSRF ever written. The
+  cloud metadata addresses are refused on every instance, always — there is no configuration that
+  turns that off, because the thing on the other end is the machine's own credentials. Everything
+  else private is refused unless the operator opts in. Node keeps the brackets on an IPv6 hostname,
+  so `[fd00:ec2::254]` slipped past the always-refuse rule until a test caught it.
+- **A form never names an ssh key file.** Keys are chosen by nickname from a list the operator
+  configured on the server; the path never touches the browser. Unset — which is what the public
+  instance runs — the console can register services watched over http but cannot reach a machine.
+- **A policy arriving from a form is sanitised before it is stored.** Not because `decide()` would
+  ever honour a forbidden operation — it refuses them by risk, whatever the policy says — but
+  because a stored policy *claiming* to grant `delete_data` would be rendered as granted, and
+  somebody would reasonably believe they had granted it.
 
 ## How I built it
 
@@ -102,7 +137,7 @@ product can show you the line — and `decide()` refuses forbidden risk before i
 at all, so no policy can grant them.
 
 The sweep is pm2 cron every ten minutes; the console is Next.js with the run streaming over SSE; the
-ledger is SQLite through drizzle. 132 tests, 5 files, about 0.9 seconds, fully offline.
+ledger is SQLite through drizzle. 228 tests across 11 files, about a second, fully offline.
 
 ## Challenges I ran into
 

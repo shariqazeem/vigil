@@ -322,7 +322,7 @@ throws, so after each attempt the test asserts *nothing was spawned*, *nothing l
 legitimate look, a diagnosis, an allowed restart — which does run and does write, because a
 red-team test that passes against a broken harness proves nothing.
 
-The whole suite is 132 tests across 5 files, about 0.9 seconds, fully offline: no network, no model,
+The whole suite is 228 tests across 11 files, about a second, fully offline: no network, no model,
 no process spawned.
 
 ## How it knows it worked

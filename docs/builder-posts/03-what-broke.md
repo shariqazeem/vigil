@@ -198,7 +198,7 @@ neither asks the agent what it remembers. When bug 4 had the remedy agent confid
 own old surrender, the thing that made it recoverable was that the incident's actual history was in
 a table, not in the conversation.
 
-The whole suite is 132 tests across 5 files, about 0.9 seconds, fully offline — no network, no
+The whole suite is 228 tests across 11 files, about a second, fully offline — no network, no
 model, no process spawned. Bugs 5 and 6 came out of writing it. That is a good rate of return for a
 morning.
 
