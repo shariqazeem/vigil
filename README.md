@@ -46,7 +46,7 @@ with arguments validated by zod, spawned with `execFile`. No shell string is eve
 
 ## Try it in 60 seconds
 
-**Break it yourself.** <https://warden.80.225.209.190.sslip.io> — no sign-up. If the board is quiet
+**Break it yourself.** <https://warden.80.225.209.190.sslip.io/fleet> — no sign-up. If the board is quiet
 there is a button on it that really runs `pm2 stop vigil` on the real machine. Warden's own checks
 notice, an incident opens, and you land on it with the run already streaming: what it looked at and
 why, the cause it commits to and how sure it is, the policy verdict with the rule that decided, the
@@ -69,7 +69,7 @@ behind both.
 ```bash
 npm install --legacy-peer-deps
 npx vitest run
-# 17 files, 291 tests, ~1s
+# 17 files, 297 tests, ~1s
 
 npx vitest run src/agent/__tests__/gates.test.ts
 # the red team: a jailbroken sequence pushed through the real hooks and the real tools
@@ -92,12 +92,33 @@ The web app is the product, not a view of it. Every page calls the same function
 
 | | |
 | --- | --- |
-| `/` | Your fleet and the public one, kept apart. Live probe history per check, the postures, and *check everything now* — the same sweep the cron runs, streamed as each probe answers. A halted run is the one thing this page is ever loud about. |
+| `/` | The front door. One arc in five scenes, with a live panel beside the words that is the actual fleet — drawn from the same rows the console renders, because a landing page for a product about honest evidence cannot open on a figure somebody typed. |
+| `/start` | The first minute, and mostly it says there is nothing to sign up for. Also where a **recovery key** is issued — see below. |
+| `/fleet` | Your fleet and the public one, kept apart. Live probe history per check, the postures, and *check everything now* — the same sweep the cron runs, streamed as each probe answers. A halted run is the one thing this page is ever loud about. |
+| `/incidents` | Every incident, newest first. The fleet page answers "is anything wrong now"; this answers the question you ask afterwards — what has gone wrong, how often, and what happened about it, which is what decides whether you widen a policy or narrow it. |
 | `/new` | Register something. A URL is a complete registration; a machine, a checkout and a pm2 process are what turn a watch into an operator. The posture is three sentences rather than seventeen switches, because nobody choosing this for the first time can judge whether `redeploy_previous` belongs in `ask`. |
 | `/s/[id]` | **The policy editor.** All seventeen operations, each with a sentence saying what granting it *means*, the action cap, the cooldown and the note. The four forbidden operations are shown locked rather than hidden. Nothing is applied until you press save. Also: add and retire checks, check it now, pause, delete. |
 | `/i/[id]` | One incident, live over SSE. Hand it over, watch it work, answer it when it stops — and every command at the bottom with the rule that permitted it. |
 | `/activity` | Every operation across every service, newest first, refusals as prominent as acts. |
 | `/settings` | Where Warden should reach you. |
+
+The app sits behind a **hover-expand rail** — 56px at rest, 224px when you reach for it, a bottom bar
+on a phone where there is no hover. It floats rather than taking a column because the incident
+timeline is the thing people actually watch and it should not be narrowed for navigation nobody is
+looking at. The one number that should ever interrupt somebody rides on it.
+
+### Signing in, when there is nothing to sign into
+
+There is no account, no password and no email: a signed cookie makes a service yours. That is a good
+trade right up until somebody clears their cookies or opens Warden on a second machine, at which
+point their services were simply unreachable — a limitation this README carried for longer than it
+should have.
+
+A **recovery key** closes it. The cookie's value is already an HMAC-signed statement of who someone
+is, so the key is that exact string: hand it back on any device and you are yourself again. Which
+means it is exactly as powerful as the cookie, and it is therefore shown once, to the person who
+just created it, and never listed anywhere afterwards. A key whose payload has been edited to claim
+another identity fails the signature and restores nothing (`src/lib/auth/__tests__/ownership.test.ts`).
 
 One button on `/` is demo tooling rather than product, and is labelled as such: **break it on
 purpose**. It stops a real process on the real machine so a visitor can watch the loop instead of
@@ -363,7 +384,7 @@ throws, so after each attempt the test asserts *nothing was spawned*, *nothing l
 legitimate look, a diagnosis, an allowed restart — which does run and does write, because a
 red-team test that passes against a broken harness proves nothing.
 
-The whole suite is 291 tests across 18 files, about a second, fully offline: no network, no model,
+The whole suite is 297 tests across 18 files, about a second, fully offline: no network, no model,
 no process spawned.
 
 ## The one check that fails before anything is broken

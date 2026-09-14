@@ -55,11 +55,18 @@ the incident escalates, saying plainly that Warden acted but is not calling this
 
 **Judges: there is a button on the front page that breaks it.** A working operator has a boring
 board, which is a real presentation problem, and the honest answer to it is a real outage rather
-than a video. If the fleet is quiet, *Break Vigil on purpose* runs `pm2 stop vigil` on the actual
-machine; Warden's own checks notice, an incident opens, and you land on it with the run streaming.
+than a video. If the fleet is quiet, *Break Vigil on purpose* on `/fleet` runs `pm2 stop vigil` on the
+actual machine; Warden's own checks notice, an incident opens, and you land on it with the run streaming.
 Ninety seconds, nothing recorded. Which service that button may touch is one function with the
 reasons written down and its own test file — never SAGE, never Warden's own console, never anything
 a visitor registered — and stopping is still not one of Warden's own operations.
+
+**There is a front door, a dashboard you live in, and a way back in.** The landing is one arc in five
+scenes with a live panel beside the words that is the real fleet. The app sits behind a hover-expand
+rail — `/fleet` for what is happening now, `/incidents` for what has gone wrong, `/activity` for
+every operation with the rule that permitted it, `/settings` for where Warden reaches you. And
+because there is no account to lose, `/start` issues a **recovery key**: the signed cookie written
+down, so a cleared browser or a second laptop is not the end of your fleet.
 
 **And you can use it on your own things in under a minute.** Press *Watch something of yours*, give
 it a URL, and that is the sign-up: a signed cookie makes the service yours and the next sweep picks
@@ -148,7 +155,7 @@ product can show you the line — and `decide()` refuses forbidden risk before i
 at all, so no policy can grant them.
 
 The sweep is pm2 cron every ten minutes; the console is Next.js with the run streaming over SSE; the
-ledger is SQLite through drizzle. 291 tests across 18 files, about a second, fully offline.
+ledger is SQLite through drizzle. 297 tests across 18 files, about a second, fully offline.
 
 ## Challenges I ran into
 
@@ -261,8 +268,8 @@ OpenAI-compatible gateway · nginx
 
 ## For the judges
 
-**Live, no sign-up, nothing to install:** https://warden.80.225.209.190.sslip.io — the demo fleet is
-public on purpose.
+**Live, no sign-up, nothing to install:** https://warden.80.225.209.190.sslip.io — and the board
+itself is one click away at `/fleet`, public on purpose.
 
 **The claim you should be most sceptical of is "the policy is code, not a prompt". This command is
 the answer, and it needs no API key, no network and no model:**
