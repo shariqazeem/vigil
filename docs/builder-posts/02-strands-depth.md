@@ -252,5 +252,6 @@ system prompt, it meant I had not yet written the hook.
 
 ---
 
-*Warden: https://github.com/shariqazeem/warden (MIT). The suite that proves the boundaries —
-327 tests, offline, no model, nothing spawned — is `npx vitest run`.*
+*Warden is live with no sign-up at https://getwarden.vercel.app. Open source (MIT):
+https://github.com/shariqazeem/warden. The suite that proves the boundaries — 327 tests, offline,
+no model, nothing spawned — is `npx vitest run`.*

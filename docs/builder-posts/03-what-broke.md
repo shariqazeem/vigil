@@ -4,11 +4,11 @@ Warden is an agent that operates running software — it investigates a failing 
 per-service policy allows, and proves the fix by re-running the check. Built on the Strands Agents
 SDK, in TypeScript, in six days.
 
-The demo worked early. The product did not, and the gap between them was six bugs. Four of them I
+The demo worked early. The product did not, and the gap between them was eight bugs. Six of them I
 found by watching it fail; two the test suite found on its own, and neither was visible from
 outside. This is what each one actually was.
 
-Four of the six were the same shape: **something remembered more than it should have.**
+Four of the eight were the same shape: **something remembered more than it should have.**
 
 ## 1. A retry strategy cannot be shared between agents
 

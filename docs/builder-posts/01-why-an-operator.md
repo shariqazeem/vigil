@@ -187,5 +187,7 @@ work. Guessing at somebody's production is not.
 
 ---
 
-*Warden is open source (MIT): https://github.com/shariqazeem/warden. It is built on the Strands
-Agents SDK; the next post is about which parts of the SDK the boundaries are actually made of.*
+*Warden is live with no sign-up at https://getwarden.vercel.app — the board has a button that
+really stops a real service, so you can watch the loop rather than read about it. Open source
+(MIT): https://github.com/shariqazeem/warden. It is built on the Strands Agents SDK; the next post
+is about which parts of the SDK the boundaries are actually made of.*
