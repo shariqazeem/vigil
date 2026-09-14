@@ -4,7 +4,7 @@ import { canEdit, canView, currentOwner } from "@/lib/auth/session";
 import { listIncidents, listProbes, listStanding, parseSpec, policyOf, readingsFor, getService } from "@/lib/db/warden";
 import { POSTURE_WORDS, decide, posture } from "@/lib/ops/policy";
 import { CheckNow } from "@/components/check-now";
-import { PolicyEditor, ProbeAdder, RetireProbe, ServiceSettings } from "./manage";
+import { PolicyEditor, ProbeAdder, RetireProbe, ServiceDetails, ServiceSettings } from "./manage";
 import { catalogue } from "@/lib/ops/operations";
 import "../../i/[id]/incident.css";
 import "./service.css";
@@ -224,6 +224,7 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
       {mine ? (
         <section className="sp-sec">
           <h2 className="in-h2">This service</h2>
+          <ServiceDetails serviceId={service.id} name={service.name} matters={service.matters} />
           <ServiceSettings serviceId={service.id} name={service.name} paused={service.state === "paused"} />
         </section>
       ) : null}

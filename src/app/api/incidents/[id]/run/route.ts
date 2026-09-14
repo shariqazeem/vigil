@@ -1,5 +1,5 @@
 import { canView, currentOwner } from "@/lib/auth/session";
-import { getDecision, getIncident, getService } from "@/lib/db/warden";
+import { autoRunsToday, getDecision, getIncident, getService } from "@/lib/db/warden";
 import { handleIncident, resumeWithAnswer } from "@/agent/warden";
 import type { WardenEmit } from "@/agent/incident-context";
 
@@ -17,6 +17,14 @@ export const maxDuration = 900;
  * One run per incident: a second request is told so rather than racing the first.
  */
 const running = new Set<string>();
+
+/**
+ * The same ceiling the sweep uses, applied to the button. Handing an incident over spends a model
+ * call on somebody else's account — the public fleet is open on purpose, and "press this and watch
+ * a real agent work" is the demo, so it should not also be a way to run the budget down. Past the
+ * ceiling the incident is still open, still readable, and still there tomorrow.
+ */
+const DAILY = Number(process.env.WARDEN_AUTO_HANDLE_DAILY ?? 40);
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -46,6 +54,17 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       try {
         if (running.has(id)) {
           send({ kind: "error", message: "Warden is already working on this incident. Watch that run rather than starting another." });
+          return;
+        }
+        // Starting a new run is capped. ANSWERING one is never capped: the run is already halted
+        // holding a question, the person is standing there, and refusing to accept their answer
+        // would strand work that has already been paid for.
+        const used = mode === "resume" ? 0 : autoRunsToday(service.ownerKey);
+        if (used >= DAILY) {
+          send({
+            kind: "error",
+            message: `Warden has worked ${used} incidents for this fleet in the last day, which is the ceiling. This one stays open and can be handled tomorrow — or run it yourself from a checkout, where the ceiling is yours to set.`,
+          });
           return;
         }
         running.add(id);

@@ -268,6 +268,52 @@ export function RetireProbe({ probeId, label }: { probeId: string; label: string
 
 /* ── stop watching ────────────────────────────────────────────────── */
 
+/**
+ * Renaming, and saying what breaks for a person when this is down. The second field is not
+ * decoration: Warden puts it in front of itself while it works, and "nobody can pay us" and
+ * "an internal dashboard three people use" earn different care from the same agent.
+ */
+export function ServiceDetails({ serviceId, name, matters }: { serviceId: string; name: string; matters: string | null }) {
+  const [n, setN] = useState(name);
+  const [m, setM] = useState(matters ?? "");
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const router = useRouter();
+  const dirty = n.trim() !== name || m.trim() !== (matters ?? "");
+
+  const save = async () => {
+    setBusy(true);
+    await fetch(`/api/services/${serviceId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: n.trim(), matters: m.trim() || null }),
+    });
+    setBusy(false);
+    setSaved(true);
+    router.refresh();
+  };
+
+  return (
+    <div className="card sp-details">
+      <label className="nw-field">
+        <span className="nw-label">Name</span>
+        <input className="nw-in" value={n} onChange={(e) => { setN(e.target.value); setSaved(false); }} maxLength={60} />
+      </label>
+      <label className="nw-field">
+        <span className="nw-label">What breaks for a person when this is down</span>
+        <input className="nw-in" value={m} onChange={(e) => { setM(e.target.value); setSaved(false); }} maxLength={200} placeholder="Nobody can pay us." />
+        <span className="nw-hint">Warden reads this before it decides anything.</span>
+      </label>
+      <div className="sp-adder-go">
+        <button type="button" className="btn btn-accent btn-sm" onClick={save} disabled={busy || !dirty || !n.trim()}>
+          {busy ? "Saving…" : "Save"}
+        </button>
+        {saved && !dirty ? <span className="sp-saved">Saved.</span> : null}
+      </div>
+    </div>
+  );
+}
+
 export function ServiceSettings({ serviceId, name, paused }: { serviceId: string; name: string; paused: boolean }) {
   const [confirm, setConfirm] = useState("");
   const [open, setOpen] = useState(false);
