@@ -243,8 +243,10 @@ first-class outcome. An operator that escalates well at 3am has done a night's w
   production rather than in configuration.
 - Exercise the disruptive path: `redeploy_previous` is `ask` in the default policy and has not yet
   been the thing that fixed a real outage.
-- More probe kinds — a queue depth, a certificate expiry, a disk threshold — since every one of them
-  is also a verification step, which is where they pay for themselves.
+- More probe kinds — a queue depth, a disk threshold. The certificate check that was on this list is
+  built, and it turned out to be the most interesting one: it is the only check here that fails
+  before anything is broken, and the only thing Warden can do properly for a service that is nothing
+  but a URL.
 - Something better than a signed cookie for identity. It is enough to keep one visitor's services
   out of another's hands and it is not an account: clear the cookie and they are unreachable.
 - A second host, so the ssh path is tested somewhere other than the machine that also runs Warden.
