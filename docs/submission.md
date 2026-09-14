@@ -53,6 +53,14 @@ Then the part that makes it a product instead of a demo: Warden re-runs *the exa
 failed*. A clean reading closes the incident and its id is stored as the proof. Anything else and
 the incident escalates, saying plainly that Warden acted but is not calling this fixed.
 
+**Judges: there is a button on the front page that breaks it.** A working operator has a boring
+board, which is a real presentation problem, and the honest answer to it is a real outage rather
+than a video. If the fleet is quiet, *Break Vigil on purpose* runs `pm2 stop vigil` on the actual
+machine; Warden's own checks notice, an incident opens, and you land on it with the run streaming.
+Ninety seconds, nothing recorded. Which service that button may touch is one function with the
+reasons written down and its own test file — never SAGE, never Warden's own console, never anything
+a visitor registered — and stopping is still not one of Warden's own operations.
+
 **And you can use it on your own things in under a minute.** Press *Watch something of yours*, give
 it a URL, and that is the sign-up: a signed cookie makes the service yours and the next sweep picks
 it up. Everything after that is in the console — the policy editor, where all sixteen operations sit

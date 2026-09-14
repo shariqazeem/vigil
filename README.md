@@ -45,9 +45,15 @@ with arguments validated by zod, spawned with `execFile`. No shell string is eve
 
 ## Try it in 60 seconds
 
-**Watch it, no setup.** <https://warden.80.225.209.190.sslip.io> — the fleet is public, no sign-up.
-Open any incident: the timeline is what Warden did, and the table at the bottom is every command it
-ran with the policy rule that permitted each one.
+**Break it yourself.** <https://warden.80.225.209.190.sslip.io> — no sign-up. If the board is quiet
+there is a button on it that really runs `pm2 stop vigil` on the real machine. Warden's own checks
+notice, an incident opens, and you land on it with the run already streaming: what it looked at and
+why, the cause it commits to and how sure it is, the policy verdict with the rule that decided, the
+act, and the re-run of the exact check that failed. About ninety seconds, and none of it is a
+recording. Then read the table at the bottom — every command with the rule that permitted it.
+
+A working operator has a boring board, which is a genuine presentation problem, and the honest
+answer to it is a real outage rather than a video.
 
 **Then use it.** Press *Watch something of yours* and give it a URL. That is the whole sign-up: a
 signed cookie makes the service yours, and the next sweep picks it up. Everything after that is in
@@ -91,6 +97,14 @@ The web app is the product, not a view of it. Every page calls the same function
 | `/i/[id]` | One incident, live over SSE. Hand it over, watch it work, answer it when it stops — and every command at the bottom with the rule that permitted it. |
 | `/activity` | Every operation across every service, newest first, refusals as prominent as acts. |
 | `/settings` | Where Warden should reach you. |
+
+One button on `/` is demo tooling rather than product, and is labelled as such: **break it on
+purpose**. It stops a real process on the real machine so a visitor can watch the loop instead of
+being asked to believe in it. Which service it is allowed to touch is one line in
+`src/lib/demo-break.ts` with the reasons written down — never a service a visitor registered, never
+Warden's own console (which is what they are watching through), never SAGE — and it has its own test
+file that attacks the choice. Stopping is still not one of Warden's operations: the agent cannot
+stop anything, and this is the room's hand on the switch, not its.
 
 **Writing from a browser is a different threat model from editing a file on the server**, and the
 new surface is built around three boundaries with a test file that attacks each
