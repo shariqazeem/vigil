@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { OPERATIONS, OPERATION_NAMES, catalogue, riskOf, type OperationName } from "../operations";
-import { ASK_BEFORE_ACTING, DEFAULT_POLICY, OBSERVE_ONLY, PolicySchema, decide, describePolicy, parsePolicy, posture, sanitisePolicy, type Policy, type PolicyContext } from "../policy";
+import { OPERATIONS, OPERATION_NAMES, catalogue, execute, riskOf, type OperationName } from "../operations";
+import { hasMachine, stanceOf } from "@/lib/ops/local";
+import { ASK_BEFORE_ACTING, DEFAULT_POLICY, OBSERVE_ONLY, POSTURE_WORDS, PolicySchema, decide, describePolicy, parsePolicy, posture, sanitisePolicy, type Policy, type PolicyContext } from "../policy";
 
 /**
  * `decide()` is the whole product in one pure function, so it is tested the way a pure function
@@ -421,5 +422,37 @@ describe("a policy arriving from outside", () => {
   it("keeps a legitimate policy intact", () => {
     expect(sanitisePolicy(ASK_BEFORE_ACTING)).toEqual(ASK_BEFORE_ACTING);
     expect(sanitisePolicy(DEFAULT_POLICY)).toEqual(DEFAULT_POLICY);
+  });
+});
+
+/**
+ * The card and the page must agree about what Warden can do to a service.
+ *
+ * "may act" on a card, above a page explaining that Warden cannot touch this service, is the
+ * product contradicting itself — and the card is the half people read. A permissive policy on a
+ * service with no machine grants nothing, because execute() refuses every operation except the
+ * check itself.
+ */
+describe("what a service card says", () => {
+  const permissive = POSTURE_WORDS[posture(DEFAULT_POLICY)];
+
+  it("says network only when there is no machine, whatever the policy says", () => {
+    expect(permissive.label).toBe("may act");
+    expect(stanceOf({ host: "local", repo: null, process: null }, permissive).label).toBe("network only");
+  });
+
+  it.each([
+    ["a process name", { host: "local", repo: null, process: "app" }],
+    ["a checkout", { host: "local", repo: "/srv/app", process: null }],
+    ["a machine to reach", { host: "ubuntu@203.0.113.10", repo: null, process: null }],
+  ])("reports the policy once the service has %s", (_what, service) => {
+    expect(stanceOf(service, permissive)).toEqual(permissive);
+  });
+
+  it("agrees with what execute() will actually allow", async () => {
+    const urlOnly = { host: "local", repo: null, process: null };
+    expect(hasMachine(urlOnly)).toBe(false);
+    const res = await execute("pm2_list", {}, { ...urlOnly, sshKey: null, nodeBin: null });
+    expect(res.ok).toBe(false);
   });
 });

@@ -5,6 +5,7 @@ import { decisionsFor, getIncident, getProbe, getService, listActions, parseOpti
 import { Live, type OpenQuestion } from "./live";
 import "./incident.css";
 import { chipClass, statusChip } from "@/lib/incident-status";
+import { hasMachine } from "@/lib/ops/local";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +73,7 @@ export default async function IncidentPage({ params, searchParams }: { params: P
         </div>
       ) : null}
 
-      {!service.process && !service.repo && (service.host === "local" || !service.host) ? (
+      {!hasMachine(service) ? (
         <p className="sp-reach">
           <b>This service is watched over the network only.</b> Warden can tell you the check stopped answering and nothing more —
           there are no logs to read, no process table to look at and no commits to compare, because it has no machine of yours to

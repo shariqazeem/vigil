@@ -5,6 +5,7 @@ import { POSTURE_WORDS, posture } from "@/lib/ops/policy";
 import type { Service } from "@/lib/db/schema";
 import { BreakIt } from "@/components/break-it";
 import { breakableService } from "@/lib/demo-break";
+import { stanceOf } from "@/lib/ops/local";
 import { CheckNow } from "@/components/check-now";
 import { chipClass, statusChip } from "@/lib/incident-status";
 import "./home.css";
@@ -146,7 +147,7 @@ function ServiceCard({ service }: { service: Service }) {
   const open = openIncidents(service.id);
   const policy = policyOf(service);
   const history = listIncidents(service.id, 60);
-  const stance = POSTURE_WORDS[posture(policy)];
+  const stance = stanceOf(service, POSTURE_WORDS[posture(policy)]);
   const paused = service.state === "paused";
 
   const state = paused ? "unknown" : open.length ? "down" : probes.length ? "ok" : "unknown";

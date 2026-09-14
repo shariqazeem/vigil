@@ -43,3 +43,27 @@ export function confineLocal(input: { repo?: string | null; process?: string | n
       : null,
   };
 }
+
+/**
+ * Whether Warden has anywhere to run an operation for this service other than the URL.
+ *
+ * A checkout, a process name, or a machine to reach. With none of them, `execute()` refuses every
+ * operation except `http_probe` — so the policy may say what it likes and nothing but the check
+ * itself can happen.
+ */
+export const hasMachine = (s: { host: string; repo?: string | null; process?: string | null }): boolean =>
+  !!s.process || !!s.repo || (s.host !== "local" && !!s.host);
+
+export interface Stance {
+  label: string;
+  tone: "unknown" | "warn" | "accent";
+}
+
+/**
+ * The three words on a service card — from the policy AND from whether there is anything for the
+ * policy to be about. A card reading "may act" above a page explaining that Warden cannot touch
+ * this service is the product contradicting itself, and the card is the half people read.
+ */
+export function stanceOf(service: { host: string; repo?: string | null; process?: string | null }, posture: { label: string; tone: Stance["tone"] }): Stance {
+  return hasMachine(service) ? posture : { label: "network only", tone: "unknown" };
+}

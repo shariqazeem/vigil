@@ -4,6 +4,7 @@ import { canEdit, canView, currentOwner } from "@/lib/auth/session";
 import { listIncidents, listProbes, listStanding, parseSpec, policyOf, readingsFor, getService } from "@/lib/db/warden";
 import { POSTURE_WORDS, decide, posture } from "@/lib/ops/policy";
 import { CheckNow } from "@/components/check-now";
+import { hasMachine, stanceOf } from "@/lib/ops/local";
 import { PolicyEditor, ProbeAdder, RetireProbe, ServiceDetails, ServiceSettings } from "./manage";
 import { catalogue } from "@/lib/ops/operations";
 import "../../i/[id]/incident.css";
@@ -44,6 +45,7 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
   const incidents = listIncidents(id, 40);
   const standing = listStanding(id);
   const ops = catalogue();
+  const stance = stanceOf(service, POSTURE_WORDS[posture(policy)]);
 
   /**
    * What would happen if this operation came up right now, on a fresh incident. This calls the SAME
@@ -89,7 +91,7 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
           {service.repo ? ` · ${service.repo}` : ""}
         </p>
         <div className="sp-actions">
-          <span className={`chip is-${POSTURE_WORDS[posture(policy)].tone}`}>{POSTURE_WORDS[posture(policy)].label}</span>
+          <span className={`chip is-${stance.tone}`}>{stance.label}</span>
           {service.state === "paused" ? (
             <span className="chip is-unknown">paused — no sweep touches this</span>
           ) : (
@@ -140,7 +142,7 @@ export default async function ServicePage({ params, searchParams }: { params: Pr
         {mine ? <ProbeAdder serviceId={service.id} hasProcess={!!service.process} /> : null}
       </section>
 
-      {mine && service.host === "local" && !service.process ? (
+      {mine && !hasMachine(service) ? (
         <p className="sp-reach">
           <b>Warden can see this one but cannot touch it.</b> It is watched over http, so it knows when the URL stops answering and
           nothing more — no logs, no process table, no recent commits, and nothing it could do about any of them. To let it act, it
