@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, isNull } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db, schema } from "./index";
 import type { Action, Channel, Decision, Incident, Probe, Reading, Service, Standing, WardenEvent } from "./schema";
@@ -436,3 +436,26 @@ export const retireChannel = (cid: string): void => void db.update(channels).set
 /** What happened the last time Warden used it. A hook that silently stopped working is a lie. */
 export const recordDelivery = (cid: string, ok: boolean, note: string): void =>
   void db.update(channels).set({ lastAt: now(), lastOk: ok, lastNote: note.slice(0, 200) }).where(eq(channels.id, cid)).run();
+
+/**
+ * How many incidents Warden has taken on by itself for this owner in the last day.
+ *
+ * The sweep hands every new incident straight to the agent, which is the whole point of it — and
+ * also, now that anyone can register a service from the web, a way to spend somebody else's model
+ * budget by pointing Warden at a URL that is always down. A bound per owner per day keeps the
+ * promise real for a person watching their own things and puts a ceiling under the other case.
+ *
+ * It counts run.start events rather than incidents, because a second attempt at the same incident
+ * costs the same as the first.
+ */
+export function autoRunsToday(ownerKey: string): number {
+  const since = now() - 24 * 60 * 60 * 1000;
+  const ids = new Set(listServices(ownerKey).map((s) => s.id));
+  if (ids.size === 0) return 0;
+  return db
+    .select()
+    .from(events)
+    .where(and(eq(events.kind, "run.start"), gte(events.createdAt, since)))
+    .all()
+    .filter((e) => ids.has(e.serviceId)).length;
+}

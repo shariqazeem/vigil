@@ -49,12 +49,20 @@ with arguments validated by zod, spawned with `execFile`. No shell string is eve
 Open any incident: the timeline is what Warden did, and the table at the bottom is every command it
 ran with the policy rule that permitted each one.
 
+**Then use it.** Press *Watch something of yours* and give it a URL. That is the whole sign-up: a
+signed cookie makes the service yours, and the next sweep picks it up. Everything after that is in
+the console — the policy editor (all sixteen operations, each with a sentence saying what granting
+it means), adding and retiring checks, *check it now* streaming each probe as it answers, and
+`/settings` for where Warden should reach you when it stops to ask. Nothing about running Warden
+requires a terminal; the CLI still exists and does the same things, because the same functions are
+behind both.
+
 **Prove the boundaries on your own machine.** No network, no model, no API key, nothing spawned:
 
 ```bash
 npm install --legacy-peer-deps
 npx vitest run
-# 5 files, 132 tests, ~0.9s
+# 11 files, 228 tests, ~1s
 
 npx vitest run src/agent/__tests__/gates.test.ts
 # the red team: a jailbroken sequence pushed through the real hooks and the real tools
@@ -67,8 +75,63 @@ npx tsx --env-file=.env scripts/warden.ts register      # register a fleet and i
 npx tsx --env-file=.env scripts/warden.ts sweep         # ask every probe once; open incidents
 npx tsx --env-file=.env scripts/warden.ts handle <id>   # work one incident, printed as it happens
 npx tsx --env-file=.env scripts/warden.ts answer <decisionId> approve
+npx tsx --env-file=.env scripts/warden.ts policy <svcId> may|ask|observe
 npx tsx --env-file=.env scripts/warden.ts show          # the fleet, its probes and its incidents
 ```
+
+## The console
+
+The web app is the product, not a view of it. Every page calls the same functions the CLI does.
+
+| | |
+| --- | --- |
+| `/` | Your fleet and the public one, kept apart. Live probe history per check, the postures, and *check everything now* — the same sweep the cron runs, streamed as each probe answers. A halted run is the one thing this page is ever loud about. |
+| `/new` | Register something. A URL is a complete registration; a machine, a checkout and a pm2 process are what turn a watch into an operator. The posture is three sentences rather than sixteen switches, because nobody choosing this for the first time can judge whether `redeploy_previous` belongs in `ask`. |
+| `/s/[id]` | **The policy editor.** All sixteen operations, each with a sentence saying what granting it *means*, the action cap, the cooldown and the note. The four forbidden operations are shown locked rather than hidden. Nothing is applied until you press save. Also: add and retire checks, check it now, pause, delete. |
+| `/i/[id]` | One incident, live over SSE. Hand it over, watch it work, answer it when it stops — and every command at the bottom with the rule that permitted it. |
+| `/activity` | Every operation across every service, newest first, refusals as prominent as acts. |
+| `/settings` | Where Warden should reach you. |
+
+**Writing from a browser is a different threat model from editing a file on the server**, and the
+new surface is built around three boundaries with a test file that attacks each
+(`src/app/api/__tests__/writes.test.ts`):
+
+- **`canEdit` is not `canView`.** The public fleet is readable by anyone and writable by nobody. A
+  stranger — or a visitor holding a perfectly valid cookie of their own — cannot take SAGE off
+  `OBSERVE_ONLY`, add a check to it, or delete it.
+- **A probe is a server-side fetch on a timer**, which is the shape of every SSRF. The cloud
+  metadata addresses are refused on every instance, always. Everything else private is refused
+  unless the operator sets `WARDEN_ALLOW_PRIVATE_TARGETS=1`. (Node keeps the brackets on an IPv6
+  hostname, which let `[fd00:ec2::254]` past the always-refuse rule until a test caught it.)
+- **A form never names an ssh key file.** Keys are chosen by nickname from `WARDEN_SSH_KEYS`, and
+  only the server knows the path. Unset — which is what the public instance runs — the console can
+  register services watched over http but cannot reach a machine.
+
+A policy arriving from a form is also sanitised before it is stored. Not because `decide()` would
+honour a forbidden operation — it refuses them by risk, whatever the policy says — but because a
+stored policy claiming to grant `delete_data` would be *rendered* as granted, and somebody would
+reasonably believe they had granted it.
+
+## Being woken
+
+"It wakes you only when the decision is genuinely yours" was, for most of this project's life, a
+description of a screen: the run halted, a card appeared, and it sat there until somebody happened
+to look. An operator that cannot reach you has not woken you.
+
+An address is a URL Warden POSTs JSON to (`/settings`). Slack and Discord incoming webhooks are
+exactly that, and so is anything you write yourself — so no credential is stored beyond the URL. One
+payload carries the structured fields plus a `text` field Slack renders and a `content` field
+Discord renders, which is how one address shape reaches both without Warden knowing which it is
+talking to.
+
+Four moments send: **it stopped to ask you**, **it acted and the check still fails**, **it is
+handing the problem back**, and — only to addresses that asked for everything — **it fixed something
+and proved it**. Being told about something already fixed is news, not an interruption.
+
+Two rules matter more than the feature. Delivery never fails a run, so a dead webhook cannot turn a
+fixed incident into an error. And every attempt is written down, success or not, because a hook that
+silently stopped working otherwise looks exactly like a quiet night — `/settings` shows the last
+result per address and has a button that sends a real one now.
 
 ## What it watches right now
 
@@ -322,9 +385,18 @@ commit while explicitly declining to blame it. That is the tone the product is b
 - **A diagnosis can be wrong and the fix still work.** The run above is an example: the cause of the
   stop was never established. Warden said so, acted on what it could establish, and the check
   decided.
-- **There is no sign-up and the demo fleet is public on purpose** (`canView` treats the owner key
-  `demo` as public). Anything you register yourself is behind a signed cookie, which is enough for
-  what this is and would not be enough for a product with customers.
+- **There is no sign-up and the public fleet is public on purpose** (`canView` treats the owner key
+  `demo` as public; `canEdit` has no such branch). Anything you register yourself is behind a signed
+  HMAC cookie. That is enough to keep one visitor's services out of another's hands and it is not
+  enough for a product with customers: clear the cookie and the services are unreachable, there is
+  no way to sign in from a second device, and nothing is encrypted at rest.
+- **Notifications go one way.** Warden posts to a webhook. It does not know whether a human read it,
+  it does not retry a failed delivery, and it has no escalation after the first message — the record
+  of the attempt on `/settings` is the whole story.
+- **The unattended runs are capped at 40 per owner per day** (`WARDEN_AUTO_HANDLE_DAILY`). Past
+  that the incident still opens and still waits on the board with a button; only the part that
+  happens while nobody is looking stops. This exists because the console lets anyone register a URL,
+  and a URL that is always down would otherwise spend the model budget forever.
 - **Bedrock is wired but not what runs live.** Stated again here because it is the kind of thing a
   README is tempted to blur.
 - **One VM, three services, SQLite.** Nothing here has been tested at a scale it does not have.

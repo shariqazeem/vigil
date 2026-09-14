@@ -8,11 +8,17 @@
  *
  *   npx tsx --env-file=.env scripts/sweep.ts
  */
-import { allServices, openIncidents, pendingDecisions } from "../src/lib/db/warden";
+import { allServices, autoRunsToday, logEvent, openIncidents, pendingDecisions } from "../src/lib/db/warden";
 import { sweepService } from "../src/lib/ops/sweep";
 import { handleIncident } from "../src/agent/warden";
 
 const AUTO = process.env.WARDEN_AUTO_HANDLE !== "0";
+/**
+ * A ceiling on how many incidents Warden takes on by itself, per owner, per day. Not a licence
+ * limit — a bound on what a URL that is always down can cost. Past it, the incident still opens and
+ * still sits on the board with a "Hand it to Warden" button; only the unattended part stops.
+ */
+const DAILY = Number(process.env.WARDEN_AUTO_HANDLE_DAILY ?? 40);
 const stamp = () => new Date().toISOString().replace("T", " ").slice(0, 19);
 
 async function main() {
@@ -34,6 +40,12 @@ async function main() {
 
     if (!AUTO) continue;
     for (const incident of r.opened) {
+      const used = autoRunsToday(service.ownerKey);
+      if (used >= DAILY) {
+        console.log(`  ${service.name}: ${used} runs in the last day is the ceiling — ${incident.id} is open and waiting for a person`);
+        logEvent(service.id, "system", "auto.capped", `Warden has investigated ${used} incidents for this owner in a day. ${incident.id} was left for a person to hand over.`, incident.id);
+        continue;
+      }
       console.log(`  → handing ${incident.id} to Warden`);
       try {
         const out = await handleIncident(incident.id, (e) => {
